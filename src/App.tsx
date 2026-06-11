@@ -12,6 +12,7 @@ const AlumnosPage = React.lazy(() => import('./pages/AlumnosPage'));
 const AsistenciaPage = React.lazy(() => import('./pages/AsistenciaPage'));
 const HorasTrabajadasPage = React.lazy(() => import('./pages/HorasTrabajadasPage'));
 const NotasPage = React.lazy(() => import('./pages/NotasPage'));
+const PagosPage = React.lazy(() => import('./pages/PagosPage'));
 
 const AuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -89,6 +90,16 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    label: 'Mis Pagos',
+    to: '/pagos',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" y1="1" x2="12" y2="23" />
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      </svg>
+    ),
+  },
 ];
 
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -130,6 +141,7 @@ const ProtectedAppLayout: React.FC = () => {
         <Route path="asistencia" element={<AsistenciaPage />} />
         <Route path="horas-trabajadas" element={<HorasTrabajadasPage />} />
         <Route path="notas" element={<NotasPage />} />
+        <Route path="pagos" element={<PagosPage />} />
       </Routes>
     </AppLayout>
   );

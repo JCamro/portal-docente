@@ -9,6 +9,7 @@ import type {
   HoraTrabajada,
   DashboardDocente,
   NotaClase,
+  PagoProfesorPortal,
 } from '../types';
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -129,4 +130,18 @@ export const updateNota = async (
 
 export const deleteNota = async (cicloId: number, notaId: number): Promise<void> => {
   await api.delete(`/portal-docente/ciclos/${cicloId}/notas/${notaId}/`);
+};
+
+// ─── Pagos ───────────────────────────────────────────────────────────────────
+
+export const getPagos = async (
+  cicloId: number,
+  estado?: string
+): Promise<PagoProfesorPortal[]> => {
+  let url = `/portal-docente/ciclos/${cicloId}/pagos/`;
+  if (estado) {
+    url += `?estado=${estado}`;
+  }
+  const response = await api.get<PagoProfesorPortal[]>(url);
+  return response.data;
 };

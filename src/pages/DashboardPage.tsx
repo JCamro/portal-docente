@@ -19,6 +19,7 @@ const DashboardPage = memo(() => {
   const [data, setData] = useState<DashboardDocente | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [montoRevealed, setMontoRevealed] = useState(false);
 
   const fetchData = async () => {
     if (!cicloActivo) {
@@ -61,6 +62,12 @@ const DashboardPage = memo(() => {
   if (loading) return <Loading message="Cargando dashboard..." />;
   if (error) return <ErrorState message={error} onRetry={fetchData} />;
   if (!data) return <EmptyState message="No hay datos disponibles" />;
+
+  const { tiene_pagos } = data;
+
+  const montoValue = tiene_pagos
+    ? (montoRevealed ? formatMonto(data.monto_acumulado) : 'S/. ****')
+    : 'Sin pagos';
 
   return (
     <div style={{
@@ -123,7 +130,7 @@ const DashboardPage = memo(() => {
         />
         <KpiCard
           label="Horas este mes"
-          value={data.horas_mes}
+          value={`${data.horas_mes.toFixed(1)}h`}
           color="#3b82f6"
           icon={
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -132,17 +139,31 @@ const DashboardPage = memo(() => {
             </svg>
           }
         />
-        <KpiCard
-          label="Monto acumulado"
-          value={formatMonto(data.monto_acumulado)}
-          color="#10b981"
-          icon={
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
-          }
-        />
+        <div
+          onClick={() => tiene_pagos && setMontoRevealed(!montoRevealed)}
+          style={{ cursor: tiene_pagos ? 'pointer' : 'default' }}
+          title={tiene_pagos ? (montoRevealed ? 'Ocultar monto' : 'Mostrar monto') : undefined}
+        >
+          <KpiCard
+            label="Monto acumulado"
+            value={montoValue}
+            color="#10b981"
+            icon={
+              montoRevealed && tiene_pagos ? (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+              ) : (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="1" x2="12" y2="23" />
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              )
+            }
+          />
+        </div>
       </div>
 
       {/* Quick Links */}
@@ -187,6 +208,19 @@ const DashboardPage = memo(() => {
           }
           onClick={() => navigate('/notas')}
         />
+        {tiene_pagos && (
+          <QuickLink
+            title="Mis Pagos"
+            description="Historial de pagos"
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23" />
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            }
+            onClick={() => navigate('/pagos')}
+          />
+        )}
       </div>
 
       <style>{`

@@ -31,6 +31,12 @@ export const ESTADO_ASISTENCIA_MAP: Record<string, { label: string; color: strin
   tardanza: { label: 'Tardanza', color: '#d97706', bg: '#fef3c7' },
 };
 
+export const ESTADO_PAGO_MAP: Record<string, { label: string; color: string; bg: string }> = {
+  calculado: { label: 'Calculado', color: '#d97706', bg: '#fef3c7' },
+  pagado: { label: 'Pagado', color: '#16a34a', bg: '#dcfce7' },
+  anulado: { label: 'Anulado', color: '#dc2626', bg: '#fee2e2' },
+};
+
 export const ESTADO_HT_MAP: Record<string, { label: string; color: string; bg: string }> = {
   pendiente: { label: 'Pendiente', color: '#d97706', bg: '#fef3c7' },
   aprobada: { label: 'Aprobada', color: '#16a34a', bg: '#dcfce7' },
