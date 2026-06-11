@@ -76,7 +76,7 @@ const LoginPage = memo(() => {
               <input
                 id="dni"
                 type="text"
-                inputMode="numeric"
+                inputMode="text"
                 pattern="[0-9A-Za-z\-]{7,15}"
                 autoComplete="current-password"
                 value={dni}

@@ -21,6 +21,11 @@ export const DIA_SEMANA_CORTO: Record<number, string> = {
 };
 
 export const ESTADO_ASISTENCIA_MAP: Record<string, { label: string; color: string; bg: string }> = {
+  // Backend states
+  asistio: { label: 'Presente', color: '#16a34a', bg: '#dcfce7' },
+  falta: { label: 'Ausente', color: '#dc2626', bg: '#fee2e2' },
+  falta_grave: { label: 'Falta Grave', color: '#d97706', bg: '#fef3c7' },
+  // Legacy/alternative states
   presente: { label: 'Presente', color: '#16a34a', bg: '#dcfce7' },
   ausente: { label: 'Ausente', color: '#dc2626', bg: '#fee2e2' },
   tardanza: { label: 'Tardanza', color: '#d97706', bg: '#fef3c7' },

@@ -1,7 +1,7 @@
 import React, { memo, useState, useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { getHorarios, getAsistencias } from '../api/portalDocente';
-import type { Horario, AsistenciaPorHorario, AsistenciaRegistro } from '../types';
+import type { Horario, AsistenciaRegistro } from '../types';
 import Loading from '../components/ui/Loading';
 import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
@@ -17,7 +17,7 @@ const AsistenciaPage = memo(() => {
   const [horarios, setHorarios] = useState<Horario[]>([]);
   const [selectedHorarioId, setSelectedHorarioId] = useState<number | null>(null);
   const [fecha, setFecha] = useState(() => new Date().toISOString().split('T')[0]);
-  const [asistencias, setAsistencias] = useState<AsistenciaPorHorario[]>([]);
+  const [asistencias, setAsistencias] = useState<AsistenciaRegistro[]>([]);
   const [loadingHorarios, setLoadingHorarios] = useState(true);
   const [loadingAsistencia, setLoadingAsistencia] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,10 +46,21 @@ const AsistenciaPage = memo(() => {
     setLoadingAsistencia(true);
     setError(null);
     try {
-      const data = await getAsistencias(cicloActivo.id, selectedHorarioId, fecha);
-      setAsistencias(data);
+      const response = await getAsistencias(cicloActivo.id, selectedHorarioId, fecha);
+      // Transform flat API response to AsistenciaRegistro[]
+      const registros: AsistenciaRegistro[] = (response || []).map((item: any) => ({
+        alumno: {
+          id: item.alumno_id,
+          nombre: item.alumno_nombre.split(', ')[1] || item.alumno_nombre,
+          apellido: item.alumno_nombre.split(', ')[0] || '',
+          dni: '',
+        },
+        estado: item.estado,
+      }));
+      setAsistencias(registros);
     } catch {
       setError('Error al cargar la asistencia');
+      setAsistencias([]);
     } finally {
       setLoadingAsistencia(false);
     }
@@ -88,13 +99,8 @@ const AsistenciaPage = memo(() => {
 
   const horarioSel = horarios.find(h => h.id === selectedHorarioId);
 
-  // Flatten all records
-  const allRegistros: { alumno: AsistenciaRegistro['alumno']; estado: string }[] = [];
-  asistencias.forEach((grupo) => {
-    grupo.registros.forEach((r) => {
-      allRegistros.push({ alumno: r.alumno, estado: r.estado });
-    });
-  });
+  // asistencias is already a flat array of AsistenciaRegistro
+  const allRegistros = asistencias;
 
   return (
     <div style={{
