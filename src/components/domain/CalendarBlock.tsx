@@ -15,9 +15,8 @@ const CalendarBlock: React.FC<CalendarBlockProps> = ({
   tallerNombre,
   tallerTipo,
   horaInicio,
-  horaFin: _horaFin,
   alumnosCount,
-  alumnos,
+  alumnos = [],
   onClick,
 }) => {
   const visibleAlumnos = alumnos.slice(0, 3);

@@ -9,9 +9,7 @@ const LoginPage = React.lazy(() => import('./pages/LoginPage'));
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
 const HorariosPage = React.lazy(() => import('./pages/HorariosPage'));
 const AlumnosPage = React.lazy(() => import('./pages/AlumnosPage'));
-const AsistenciaPage = React.lazy(() => import('./pages/AsistenciaPage'));
 const HorasTrabajadasPage = React.lazy(() => import('./pages/HorasTrabajadasPage'));
-const NotasPage = React.lazy(() => import('./pages/NotasPage'));
 const PagosPage = React.lazy(() => import('./pages/PagosPage'));
 
 const AuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -61,32 +59,12 @@ const navItems = [
     ),
   },
   {
-    label: 'Asistencia',
-    to: '/asistencia',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-        <polyline points="22 4 12 14.01 9 11.01" />
-      </svg>
-    ),
-  },
-  {
     label: 'Horas Trabajadas',
     to: '/horas-trabajadas',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
         <polyline points="12 6 12 12 16 14" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Notas de Clase',
-    to: '/notas',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
       </svg>
     ),
   },
@@ -138,9 +116,7 @@ const ProtectedAppLayout: React.FC = () => {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="horarios" element={<HorariosPage />} />
         <Route path="alumnos" element={<AlumnosPage />} />
-        <Route path="asistencia" element={<AsistenciaPage />} />
         <Route path="horas-trabajadas" element={<HorasTrabajadasPage />} />
-        <Route path="notas" element={<NotasPage />} />
         <Route path="pagos" element={<PagosPage />} />
       </Routes>
     </AppLayout>

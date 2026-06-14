@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 interface NoteEditorProps {
   value: string;
@@ -17,10 +17,6 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 }) => {
   const [content, setContent] = useState(value);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setContent(value);
-  }, [value]);
 
   const handleSave = async () => {
     if (!content.trim()) return;
