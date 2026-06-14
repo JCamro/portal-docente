@@ -150,6 +150,44 @@ export interface NotaClase {
   updated_at?: string;
 }
 
+export interface NotaAlumno {
+  id: number;
+  horario: number;
+  alumno: number;
+  alumno_nombre?: string;
+  fecha: string;
+  contenido: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface NotaDia {
+  id: number;
+  fecha: string;
+  contenido: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface HorarioBadge {
+  id: number;
+  taller_nombre: string;
+  taller_tipo: string;
+  dia_semana: number;
+  hora_inicio: string;
+  hora_fin: string;
+}
+
+export interface AlumnoCartilla {
+  id: number;
+  nombre: string;
+  apellido: string;
+  dni: string;
+  telefono: string;
+  email: string;
+  horarios: HorarioBadge[];
+}
+
 export interface LoginResponse {
   access: string;
   refresh: string;

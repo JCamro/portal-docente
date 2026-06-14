@@ -9,7 +9,10 @@ import type {
   HoraTrabajada,
   DashboardDocente,
   NotaClase,
+  NotaAlumno,
+  NotaDia,
   PagoProfesorPortal,
+  AlumnoCartilla,
 } from '../types';
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -51,6 +54,24 @@ export const getHorarios = async (cicloId: number): Promise<Horario[]> => {
 
 export const getHorarioDetalle = async (cicloId: number, horarioId: number): Promise<HorarioDetalle> => {
   const response = await api.get<HorarioDetalle>(`/portal-docente/ciclos/${cicloId}/horarios/${horarioId}/`);
+  return response.data;
+};
+
+// ─── Alumnos (Cartilla) ──────────────────────────────────────────────────────
+
+export const getAlumnosCartilla = async (
+  cicloId: number,
+  params?: { search?: string; taller_id?: number }
+): Promise<AlumnoCartilla[]> => {
+  let url = `/portal-docente/ciclos/${cicloId}/alumnos/`;
+  if (params) {
+    const searchParams = new URLSearchParams();
+    if (params.search) searchParams.set('search', params.search);
+    if (params.taller_id) searchParams.set('taller_id', String(params.taller_id));
+    const qs = searchParams.toString();
+    if (qs) url += `?${qs}`;
+  }
+  const response = await api.get<AlumnoCartilla[]>(url);
   return response.data;
 };
 
@@ -130,6 +151,81 @@ export const updateNota = async (
 
 export const deleteNota = async (cicloId: number, notaId: number): Promise<void> => {
   await api.delete(`/portal-docente/ciclos/${cicloId}/notas/${notaId}/`);
+};
+
+// ─── Notas Alumno ────────────────────────────────────────────────────────────
+
+export const getNotasAlumno = async (
+  cicloId: number,
+  params?: { horario_id?: number; fecha?: string; alumno_id?: number }
+): Promise<NotaAlumno[]> => {
+  let url = `/portal-docente/ciclos/${cicloId}/notas-alumno/`;
+  if (params) {
+    const searchParams = new URLSearchParams();
+    if (params.horario_id) searchParams.set('horario_id', String(params.horario_id));
+    if (params.fecha) searchParams.set('fecha', params.fecha);
+    if (params.alumno_id) searchParams.set('alumno_id', String(params.alumno_id));
+    const qs = searchParams.toString();
+    if (qs) url += `?${qs}`;
+  }
+  const response = await api.get<NotaAlumno[]>(url);
+  return response.data;
+};
+
+export const createNotaAlumno = async (
+  cicloId: number,
+  data: { horario: number; alumno: number; fecha: string; contenido: string }
+): Promise<NotaAlumno> => {
+  const response = await api.post<NotaAlumno>(`/portal-docente/ciclos/${cicloId}/notas-alumno/`, data);
+  return response.data;
+};
+
+export const updateNotaAlumno = async (
+  cicloId: number,
+  notaId: number,
+  data: { contenido: string }
+): Promise<NotaAlumno> => {
+  const response = await api.patch<NotaAlumno>(`/portal-docente/ciclos/${cicloId}/notas-alumno/${notaId}/`, data);
+  return response.data;
+};
+
+export const deleteNotaAlumno = async (cicloId: number, notaId: number): Promise<void> => {
+  await api.delete(`/portal-docente/ciclos/${cicloId}/notas-alumno/${notaId}/`);
+};
+
+// ─── Notas Dia ────────────────────────────────────────────────────────────────
+
+export const getNotasDia = async (
+  cicloId: number,
+  params?: { fecha?: string }
+): Promise<NotaDia[]> => {
+  let url = `/portal-docente/ciclos/${cicloId}/notas-dia/`;
+  if (params?.fecha) {
+    url += `?fecha=${params.fecha}`;
+  }
+  const response = await api.get<NotaDia[]>(url);
+  return response.data;
+};
+
+export const createNotaDia = async (
+  cicloId: number,
+  data: { fecha: string; contenido: string }
+): Promise<NotaDia> => {
+  const response = await api.post<NotaDia>(`/portal-docente/ciclos/${cicloId}/notas-dia/`, data);
+  return response.data;
+};
+
+export const updateNotaDia = async (
+  cicloId: number,
+  notaId: number,
+  data: { contenido: string }
+): Promise<NotaDia> => {
+  const response = await api.patch<NotaDia>(`/portal-docente/ciclos/${cicloId}/notas-dia/${notaId}/`, data);
+  return response.data;
+};
+
+export const deleteNotaDia = async (cicloId: number, notaId: number): Promise<void> => {
+  await api.delete(`/portal-docente/ciclos/${cicloId}/notas-dia/${notaId}/`);
 };
 
 // ─── Pagos ───────────────────────────────────────────────────────────────────
