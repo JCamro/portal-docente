@@ -1,61 +1,49 @@
-import { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { getHorarios, getHorarioDetalle } from '../api/portalDocente';
-import type { HorarioDetalle, AlumnoInfo } from '../types';
+import { getHorarios } from '../api/portalDocente';
+import type { HorarioDetalle } from '../types';
 import Loading from '../components/ui/Loading';
 import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
-import AlumnoCard from '../components/domain/AlumnoCard';
+import Level1DayOverview from '../components/domain/Level1DayOverview';
+import Level2TallerSessions from '../components/domain/Level2TallerSessions';
+import Level3SessionDetail from '../components/domain/Level3SessionDetail';
 import { useWindowWidth } from '../hooks/useWindowWidth';
-import { DIA_SEMANA_MAP } from '../utils/constants';
+
+const getTodayString = () => new Date().toISOString().split('T')[0];
 
 const AlumnosPage = memo(() => {
   const cicloActivo = useAuthStore((s) => s.cicloActivo);
   const width = useWindowWidth();
   const isMobile = width <= 768;
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedHorarioId = searchParams.get('horarioId');
+
+  // Level state derived from URL params
+  const fecha = searchParams.get('fecha') || getTodayString();
+  const tallerId = searchParams.get('tallerId');
+  const horarioId = searchParams.get('horarioId');
 
   const [horarios, setHorarios] = useState<HorarioDetalle[]>([]);
-  const [detalle, setDetalle] = useState<HorarioDetalle | null>(null);
-  const [loadingHorarios, setLoadingHorarios] = useState(true);
-  const [loadingDetalle, setLoadingDetalle] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchHorarios = async () => {
+  const fetchHorarios = useCallback(async () => {
     if (!cicloActivo) {
-      setLoadingHorarios(false);
+      setLoading(false);
       return;
     }
-    setLoadingHorarios(true);
+    setLoading(true);
+    setError(null);
     try {
       const data = await getHorarios(cicloActivo.id);
       setHorarios(data);
-      // Auto-select first horario if none selected
-      if (!selectedHorarioId && data.length > 0) {
-        setSearchParams({ horarioId: String(data[0].id) }, { replace: true });
-      }
     } catch {
       setError('Error al cargar horarios');
     } finally {
-      setLoadingHorarios(false);
+      setLoading(false);
     }
-  };
-
-  const fetchDetalle = async (horarioId: number) => {
-    if (!cicloActivo) return;
-    setLoadingDetalle(true);
-    setError(null);
-    try {
-      const data = await getHorarioDetalle(cicloActivo.id, horarioId);
-      setDetalle(data);
-    } catch {
-      setError('Error al cargar los alumnos');
-    } finally {
-      setLoadingDetalle(false);
-    }
-  };
+  }, [cicloActivo]);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,19 +52,45 @@ const AlumnosPage = memo(() => {
     };
     run();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cicloActivo?.id]);
+  }, [fetchHorarios]);
 
-  useEffect(() => {
-    if (!selectedHorarioId) return;
-    let cancelled = false;
-    const run = async () => {
-      if (!cancelled) await fetchDetalle(Number(selectedHorarioId));
-    };
-    run();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedHorarioId, cicloActivo?.id]);
+  const setParam = (key: string, value: string | null) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === null || value === undefined) {
+      next.delete(key);
+    } else {
+      next.set(key, value);
+    }
+    // When going back to level 1, clear deeper levels
+    if (key === 'fecha' || (key === 'tallerId' && value === null)) {
+      next.delete('tallerId');
+      next.delete('horarioId');
+    }
+    if (key === 'horarioId' && value === null) {
+      next.delete('horarioId');
+    }
+    setSearchParams(next, { replace: true });
+  };
+
+  const handleSelectDate = (date: string) => {
+    setParam('fecha', date);
+  };
+
+  const handleSelectTaller = (tid: number) => {
+    setParam('tallerId', String(tid));
+  };
+
+  const handleSelectSession = (hid: number) => {
+    setParam('horarioId', String(hid));
+  };
+
+  const handleBackFromTaller = () => {
+    setParam('tallerId', null);
+  };
+
+  const handleBackFromSession = () => {
+    setParam('horarioId', null);
+  };
 
   if (!cicloActivo) {
     return (
@@ -86,10 +100,8 @@ const AlumnosPage = memo(() => {
     );
   }
 
-  if (loadingHorarios) return <Loading message="Cargando horarios..." />;
-  if (error && !detalle) return <ErrorState message={error} onRetry={() => selectedHorarioId && fetchDetalle(Number(selectedHorarioId))} />;
-
-  const horarioSeleccionado = horarios.find(h => h.id === Number(selectedHorarioId));
+  if (loading) return <Loading message="Cargando horarios..." />;
+  if (error) return <ErrorState message={error} onRetry={fetchHorarios} />;
 
   return (
     <div style={{
@@ -107,91 +119,33 @@ const AlumnosPage = memo(() => {
         Mis Alumnos
       </h1>
 
-      {/* Horario selector */}
-      {horarios.length > 1 && (
-        <div style={{
-          display: 'flex',
-          gap: 'var(--space-3)',
-          marginBottom: 'var(--space-6)',
-          overflowX: 'auto',
-          paddingBottom: 'var(--space-2)',
-        }}>
-          {horarios.map((h) => (
-            <button
-              key={h.id}
-              onClick={() => setSearchParams({ horarioId: String(h.id) }, { replace: true })}
-              style={{
-                padding: 'var(--space-3) var(--space-4)',
-                borderRadius: 'var(--radius-md)',
-                border: h.id === Number(selectedHorarioId)
-                  ? '2px solid var(--color-gold)'
-                  : '1px solid var(--color-border)',
-                background: h.id === Number(selectedHorarioId)
-                  ? 'var(--color-gold-glow)'
-                  : 'var(--color-surface)',
-                color: h.id === Number(selectedHorarioId) ? 'var(--color-gold)' : 'var(--color-text-secondary)',
-                cursor: 'pointer',
-                fontSize: 'var(--text-sm)',
-                fontWeight: 500,
-                fontFamily: 'var(--font-body)',
-                whiteSpace: 'nowrap',
-                minHeight: 44,
-                transition: 'all 0.15s',
-              }}
-            >
-              {DIA_SEMANA_MAP[h.dia_semana]} - {h.taller_nombre}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {loadingDetalle ? (
-        <Loading message="Cargando alumnos..." />
-      ) : !detalle ? (
-        <EmptyState message="Selecciona un horario" description="Elige una clase para ver sus alumnos." />
-      ) : detalle.alumnos.length === 0 ? (
-        <EmptyState
-          message="No hay alumnos inscritos"
-          description={`No hay alumnos matriculados en ${horarioSeleccionado?.taller_nombre || 'esta clase'}.`}
+      {/* Level 3: Session detail */}
+      {horarioId && fecha ? (
+        <Level3SessionDetail
+          cicloId={cicloActivo.id}
+          horarioId={Number(horarioId)}
+          fecha={fecha}
+          horarios={horarios}
+          onBack={handleBackFromSession}
         />
-      ) : (
-        <>
-          <div style={{
-            background: 'var(--color-surface)',
-            borderRadius: 'var(--radius-xl)',
-            padding: 'var(--space-5)',
-            marginBottom: 'var(--space-6)',
-            border: '1px solid var(--color-border)',
-            boxShadow: 'var(--shadow-sm)',
-          }}>
-            <h2 style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: 'var(--text-lg)',
-              color: 'var(--color-text)',
-              margin: 0,
-              marginBottom: 'var(--space-2)',
-            }}>
-              {detalle.taller_nombre}
-            </h2>
-            <p style={{
-              fontSize: 'var(--text-sm)',
-              color: 'var(--color-text-muted)',
-              margin: 0,
-            }}>
-              {DIA_SEMANA_MAP[detalle.dia_semana]} | {detalle.alumnos.length} {detalle.alumnos.length === 1 ? 'alumno' : 'alumnos'}
-            </p>
-          </div>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-            gap: 'var(--space-4)',
-          }}>
-            {detalle.alumnos.map((alumno: AlumnoInfo) => (
-              <AlumnoCard key={alumno.id} alumno={alumno} />
-            ))}
-          </div>
-        </>
+      ) : /* Level 2: Taller sessions */
+      tallerId && fecha ? (
+        <Level2TallerSessions
+          horarios={horarios}
+          tallerId={Number(tallerId)}
+          fecha={fecha}
+          onSelectSession={handleSelectSession}
+          onBack={handleBackFromTaller}
+        />
+      ) : /* Level 1: Day overview (default) */
+      (
+        <Level1DayOverview
+          cicloId={cicloActivo.id}
+          horarios={horarios}
+          selectedDate={fecha}
+          onSelectDate={handleSelectDate}
+          onSelectTaller={handleSelectTaller}
+        />
       )}
     </div>
   );
