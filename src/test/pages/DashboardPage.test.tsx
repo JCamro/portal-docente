@@ -32,6 +32,7 @@ describe('DashboardPage', () => {
       total_alumnos: 15,
       horas_mes: 24,
       monto_acumulado: 850.00,
+      tiene_pagos: true,
     });
 
     render(
@@ -43,8 +44,8 @@ describe('DashboardPage', () => {
     expect(await screen.findByText('Dashboard')).toBeInTheDocument();
     expect(await screen.findByText('3')).toBeInTheDocument();
     expect(await screen.findByText('15')).toBeInTheDocument();
-    expect(await screen.findByText('24')).toBeInTheDocument();
-    expect(await screen.findByText(/850/)).toBeInTheDocument();
+    expect(await screen.findByText('24.0h')).toBeInTheDocument();
+    expect(await screen.findByText('S/. ****')).toBeInTheDocument();
   });
 
   it('shows empty state when no ciclo selected', async () => {

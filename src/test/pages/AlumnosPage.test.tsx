@@ -15,10 +15,14 @@ vi.mock('../../stores/authStore', () => ({
 }));
 
 const mockGetHorarios = vi.fn();
-const mockGetHorarioDetalle = vi.fn();
+const mockGetAsistencias = vi.fn();
+const mockGetNotas = vi.fn();
+const mockGetNotasAlumno = vi.fn();
 vi.mock('../../api/portalDocente', () => ({
   getHorarios: (...args: unknown[]) => mockGetHorarios(...args),
-  getHorarioDetalle: (...args: unknown[]) => mockGetHorarioDetalle(...args),
+  getAsistencias: (...args: unknown[]) => mockGetAsistencias(...args),
+  getNotas: (...args: unknown[]) => mockGetNotas(...args),
+  getNotasAlumno: (...args: unknown[]) => mockGetNotasAlumno(...args),
 }));
 
 describe('AlumnosPage', () => {
@@ -26,24 +30,30 @@ describe('AlumnosPage', () => {
     vi.clearAllMocks();
   });
 
-  it('renders student list when horarios and detalle are loaded', async () => {
+  it('renders student list in Level3 session detail', async () => {
     mockGetHorarios.mockResolvedValueOnce([
       {
         id: 1, dia_semana: 1, hora_inicio: '14:00', hora_fin: '15:00',
-        taller_nombre: 'Guitarra', taller_tipo: 'instrumento',
+        taller_id: 1, taller_nombre: 'Guitarra', taller_tipo: 'instrumento',
         cupo_maximo: 10, profesor: 1, ciclo: 1,
+        alumnos_count: 2,
+        alumnos: [
+          { id: 1, nombre: 'Ana', apellido: 'García', dni: '11111111', telefono: '999111222' },
+          { id: 2, nombre: 'Luis', apellido: 'Pérez', dni: '22222222' },
+        ],
       },
     ]);
-    mockGetHorarioDetalle.mockResolvedValueOnce({
-      id: 1, dia_semana: 1, hora_inicio: '14:00', hora_fin: '15:00',
-      taller_nombre: 'Guitarra', taller_tipo: 'instrumento',
-      cupo_maximo: 10, profesor: 1, ciclo: 1,
-      alumnos_count: 2,
-      alumnos: [
-        { id: 1, nombre: 'Ana', apellido: 'García', dni: '11111111', telefono: '999111222' },
-        { id: 2, nombre: 'Luis', apellido: 'Pérez', dni: '22222222' },
-      ],
-    });
+    mockGetAsistencias.mockResolvedValueOnce([
+      {
+        horario: { id: 1, dia_semana: 1, hora_inicio: '14:00', hora_fin: '15:00', taller_nombre: 'Guitarra', taller_tipo: 'instrumento' },
+        registros: [
+          { alumno: { id: 1, nombre: 'Ana', apellido: 'García', dni: '11111111' }, estado: 'presente' },
+          { alumno: { id: 2, nombre: 'Luis', apellido: 'Pérez', dni: '22222222' }, estado: 'ausente' },
+        ],
+      },
+    ]);
+    mockGetNotas.mockResolvedValueOnce([]);
+    mockGetNotasAlumno.mockResolvedValueOnce([]);
 
     render(
       <MemoryRouter initialEntries={['/alumnos?horarioId=1']}>
@@ -54,7 +64,6 @@ describe('AlumnosPage', () => {
     expect(await screen.findByText('Mis Alumnos')).toBeInTheDocument();
     expect(await screen.findByText('Ana García')).toBeInTheDocument();
     expect(await screen.findByText('Luis Pérez')).toBeInTheDocument();
-    expect(await screen.findByText('11111111')).toBeInTheDocument();
   });
 
   it('shows empty state when no horarios exist', async () => {
@@ -69,21 +78,24 @@ describe('AlumnosPage', () => {
     expect(await screen.findByText('Mis Alumnos')).toBeInTheDocument();
   });
 
-  it('shows empty when horario has no students', async () => {
+  it('shows empty attendance state in Level3 when horario has no registros', async () => {
     mockGetHorarios.mockResolvedValueOnce([
       {
         id: 1, dia_semana: 1, hora_inicio: '14:00', hora_fin: '15:00',
-        taller_nombre: 'Guitarra', taller_tipo: 'instrumento',
+        taller_id: 1, taller_nombre: 'Guitarra', taller_tipo: 'instrumento',
         cupo_maximo: 10, profesor: 1, ciclo: 1,
+        alumnos_count: 0,
+        alumnos: [],
       },
     ]);
-    mockGetHorarioDetalle.mockResolvedValueOnce({
-      id: 1, dia_semana: 1, hora_inicio: '14:00', hora_fin: '15:00',
-      taller_nombre: 'Guitarra', taller_tipo: 'instrumento',
-      cupo_maximo: 10, profesor: 1, ciclo: 1,
-      alumnos_count: 0,
-      alumnos: [],
-    });
+    mockGetAsistencias.mockResolvedValueOnce([
+      {
+        horario: { id: 1, dia_semana: 1, hora_inicio: '14:00', hora_fin: '15:00', taller_nombre: 'Guitarra', taller_tipo: 'instrumento' },
+        registros: [],
+      },
+    ]);
+    mockGetNotas.mockResolvedValueOnce([]);
+    mockGetNotasAlumno.mockResolvedValueOnce([]);
 
     render(
       <MemoryRouter initialEntries={['/alumnos?horarioId=1']}>
@@ -91,6 +103,6 @@ describe('AlumnosPage', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText(/No hay alumnos inscritos/i)).toBeInTheDocument();
+    expect(await screen.findByText('Sin registros de asistencia para esta fecha.')).toBeInTheDocument();
   });
 });
