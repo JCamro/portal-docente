@@ -2,7 +2,7 @@ import { memo, useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { getHorarios, getHorarioDetalle } from '../api/portalDocente';
-import type { Horario, HorarioDetalle, AlumnoInfo } from '../types';
+import type { HorarioDetalle, AlumnoInfo } from '../types';
 import Loading from '../components/ui/Loading';
 import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
@@ -17,7 +17,7 @@ const AlumnosPage = memo(() => {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedHorarioId = searchParams.get('horarioId');
 
-  const [horarios, setHorarios] = useState<Horario[]>([]);
+  const [horarios, setHorarios] = useState<HorarioDetalle[]>([]);
   const [detalle, setDetalle] = useState<HorarioDetalle | null>(null);
   const [loadingHorarios, setLoadingHorarios] = useState(true);
   const [loadingDetalle, setLoadingDetalle] = useState(false);

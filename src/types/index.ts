@@ -23,14 +23,17 @@ export interface Horario {
   dia_semana: number;
   hora_inicio: string;
   hora_fin: string;
+  taller_id?: number;
   taller_nombre: string;
   taller_tipo: string;
-  cupo_maximo: number;
-  profesor: number;
-  ciclo: number;
+  profesor_nombre?: string;
+  cupo_maximo?: number;
+  profesor?: number;
+  ciclo?: number;
 }
 
 export interface HorarioDetalle extends Horario {
+  taller_id: number;
   alumnos_count: number;
   alumnos: AlumnoInfo[];
 }
@@ -41,6 +44,7 @@ export interface AlumnoInfo {
   apellido: string;
   dni: string;
   telefono?: string;
+  edad?: number;
 }
 
 export interface Asistencia {

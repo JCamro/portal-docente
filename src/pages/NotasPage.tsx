@@ -1,7 +1,7 @@
 import React, { memo, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { getHorarios, getNotas, createNota, updateNota, deleteNota } from '../api/portalDocente';
-import type { Horario, NotaClase } from '../types';
+import type { HorarioDetalle, NotaClase } from '../types';
 import Loading from '../components/ui/Loading';
 import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
@@ -15,7 +15,7 @@ const NotasPage = memo(() => {
   const width = useWindowWidth();
   const isMobile = width <= 768;
 
-  const [horarios, setHorarios] = useState<Horario[]>([]);
+  const [horarios, setHorarios] = useState<HorarioDetalle[]>([]);
   const [notas, setNotas] = useState<NotaClase[]>([]);
   const [loadingHorarios, setLoadingHorarios] = useState(true);
   const [loadingNotas, setLoadingNotas] = useState(false);

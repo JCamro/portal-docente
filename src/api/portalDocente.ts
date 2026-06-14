@@ -3,7 +3,6 @@ import type {
   LoginResponse,
   Profesor,
   Ciclo,
-  Horario,
   HorarioDetalle,
   AsistenciaPorHorario,
   HoraTrabajada,
@@ -47,8 +46,8 @@ export const getCiclos = async (): Promise<Ciclo[]> => {
 
 // ─── Horarios ────────────────────────────────────────────────────────────────
 
-export const getHorarios = async (cicloId: number): Promise<Horario[]> => {
-  const response = await api.get<Horario[]>(`/portal-docente/ciclos/${cicloId}/horarios/`);
+export const getHorarios = async (cicloId: number): Promise<HorarioDetalle[]> => {
+  const response = await api.get<HorarioDetalle[]>(`/portal-docente/ciclos/${cicloId}/horarios/`);
   return response.data;
 };
 

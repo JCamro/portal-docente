@@ -1,7 +1,7 @@
 import React, { memo, useState, useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { getHorarios, getAsistencias } from '../api/portalDocente';
-import type { Horario, AsistenciaRegistro } from '../types';
+import type { HorarioDetalle, AsistenciaRegistro } from '../types';
 import Loading from '../components/ui/Loading';
 import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
@@ -14,7 +14,7 @@ const AsistenciaPage = memo(() => {
   const width = useWindowWidth();
   const isMobile = width <= 768;
 
-  const [horarios, setHorarios] = useState<Horario[]>([]);
+  const [horarios, setHorarios] = useState<HorarioDetalle[]>([]);
   const [selectedHorarioId, setSelectedHorarioId] = useState<number | null>(null);
   const [fecha, setFecha] = useState(() => new Date().toISOString().split('T')[0]);
   const [asistencias, setAsistencias] = useState<AsistenciaRegistro[]>([]);
