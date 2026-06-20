@@ -1,6 +1,6 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import type { HorarioDetalle } from '../../types';
-import { DIA_SEMANA_MAP, formatHora } from '../../utils/constants';
+import { formatHora } from '../../utils/constants';
 
 interface NotesFilterBarProps {
   horarios: HorarioDetalle[];
