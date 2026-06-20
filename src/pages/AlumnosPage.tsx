@@ -136,6 +136,56 @@ const AlumnosPage = memo(() => {
     });
   }, [horarios]);
 
+  // ── Computed: cascade-filtered option arrays ──────────────────────────
+  // These are pre-reduced so dropdowns only show matching options.
+
+  const filteredTalleres = useMemo(() => {
+    if (!filterState.fecha || !asistenciaResumen) return talleres;
+    const horariosOnDate = new Set(
+      asistenciaResumen.horarios
+        .filter((h) => h.fechas.includes(filterState.fecha!))
+        .map((h) => h.horario_id)
+    );
+    const tallerIdsOnDate = new Set<number>();
+    for (const h of horarios) {
+      if (horariosOnDate.has(h.id) && h.taller_id) {
+        tallerIdsOnDate.add(h.taller_id);
+      }
+    }
+    return talleres.filter((t) => tallerIdsOnDate.has(t.id));
+  }, [talleres, filterState.fecha, asistenciaResumen, horarios]);
+
+  const filteredHoras = useMemo(() => {
+    let result = horas;
+    if (filterState.tallerId !== null) {
+      const horarioIdsForTaller = new Set(
+        horarios
+          .filter((h) => h.taller_id === filterState.tallerId)
+          .map((h) => h.id)
+      );
+      result = result.filter((h) => {
+        const horario = horarios.find(
+          (hr) => hr.hora_inicio === h.inicio && hr.hora_fin === h.fin
+        );
+        return horario && horarioIdsForTaller.has(horario.id);
+      });
+    }
+    if (filterState.fecha && asistenciaResumen) {
+      const horariosOnDate = new Set(
+        asistenciaResumen.horarios
+          .filter((h) => h.fechas.includes(filterState.fecha!))
+          .map((h) => h.horario_id)
+      );
+      result = result.filter((h) => {
+        const horario = horarios.find(
+          (hr) => hr.hora_inicio === h.inicio && hr.hora_fin === h.fin
+        );
+        return horario && horariosOnDate.has(horario.id);
+      });
+    }
+    return result;
+  }, [horas, filterState.tallerId, filterState.fecha, horarios, asistenciaResumen]);
+
   // ── Client-side filtering ─────────────────────────────────────────────
   const filteredAlumnos = useMemo(() => {
     let result = [...alumnos];
@@ -221,8 +271,8 @@ const AlumnosPage = memo(() => {
       {/* Cascade filters */}
       <CascadeFilters
         fechas={fechas}
-        talleres={talleres}
-        horas={horas}
+        talleres={filteredTalleres}
+        horas={filteredHoras}
         selected={filterState}
         onChange={onFilterChange}
       />
