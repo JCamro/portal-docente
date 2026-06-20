@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useWindowWidth } from '../../hooks/useWindowWidth';
-import { getHorarioDetalle, getAsistencias, getNotas, createNota } from '../../api/portalDocente';
+import { getHorarioDetalle, getAsistencias } from '../../api/portalDocente';
 import { DIA_SEMANA_MAP, ESTADO_ASISTENCIA_MAP, formatHora } from '../../utils/constants';
 import { formatDate } from '../../utils/formatters';
-import type { HorarioDetalle, AsistenciaPorHorario, NotaClase } from '../../types';
+import type { HorarioDetalle, AsistenciaPorHorario } from '../../types';
 import Loading from '../ui/Loading';
 
 interface SidePanelProps {
@@ -19,13 +19,8 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, horarioId, cicloId, onClo
 
   const [detalle, setDetalle] = useState<HorarioDetalle | null>(null);
   const [asistencias, setAsistencias] = useState<AsistenciaPorHorario[]>([]);
-  const [notas, setNotas] = useState<NotaClase[]>([]);
   const [loading, setLoading] = useState(false);
   const [fecha, setFecha] = useState(() => new Date().toISOString().split('T')[0]);
-
-  // NotaClase editor state
-  const [notaContenido, setNotaContenido] = useState('');
-  const [savingNota, setSavingNota] = useState(false);
 
   useEffect(() => {
     if (!horarioId || !isOpen) return;
@@ -41,17 +36,6 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, horarioId, cicloId, onClo
         if (cancelled) return;
         setDetalle(det);
         setAsistencias(asis);
-
-        // Load existing nota for this horario+fecha
-        const notasResp = await getNotas(cicloId, { horario_id: horarioId, fecha });
-        if (!cancelled) {
-          setNotas(notasResp);
-          if (notasResp.length > 0) {
-            setNotaContenido(notasResp[0].contenido);
-          } else {
-            setNotaContenido('');
-          }
-        }
       } catch {
         // ignore errors
       } finally {
@@ -61,24 +45,6 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, horarioId, cicloId, onClo
     fetchData();
     return () => { cancelled = true; };
   }, [horarioId, cicloId, fecha, isOpen]);
-
-  const handleSaveNota = async () => {
-    if (!horarioId || !notaContenido.trim()) return;
-    setSavingNota(true);
-    try {
-      await createNota(cicloId, {
-        horario_id: horarioId,
-        fecha,
-        contenido: notaContenido.trim(),
-      });
-      const notasResp = await getNotas(cicloId, { horario_id: horarioId, fecha });
-      setNotas(notasResp);
-    } catch {
-      // Duplicate or error — ignore for now
-    } finally {
-      setSavingNota(false);
-    }
-  };
 
   const panelWidth = isMobile ? '100vw' : 400;
 
@@ -303,58 +269,6 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, horarioId, cicloId, onClo
                 )}
               </div>
 
-              {/* NotaClase editor */}
-              <div>
-                <h3 style={{
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: 700,
-                  color: 'var(--color-text)',
-                  fontFamily: 'var(--font-heading)',
-                  margin: 0,
-                  marginBottom: 'var(--space-3)',
-                }}>
-                  Nota de clase
-                </h3>
-                <textarea
-                  value={notaContenido}
-                  onChange={(e) => setNotaContenido(e.target.value)}
-                  rows={4}
-                  placeholder="Escribe una nota sobre esta clase..."
-                  style={{
-                    width: '100%',
-                    padding: 'var(--space-3) var(--space-4)',
-                    fontSize: 'var(--text-sm)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-surface)',
-                    color: 'var(--color-text)',
-                    fontFamily: 'var(--font-body)',
-                    resize: 'vertical',
-                    minHeight: 80,
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <button
-                  onClick={handleSaveNota}
-                  disabled={savingNota || !notaContenido.trim()}
-                  style={{
-                    marginTop: 'var(--space-3)',
-                    padding: 'var(--space-2) var(--space-4)',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-dark) 100%)',
-                    border: 'none',
-                    color: '#0a0a0a',
-                    fontWeight: 600,
-                    fontSize: 'var(--text-sm)',
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font-body)',
-                    minHeight: 44,
-                    opacity: savingNota || !notaContenido.trim() ? 0.6 : 1,
-                  }}
-                >
-                  {savingNota ? 'Guardando...' : notas.length > 0 ? 'Actualizar nota' : 'Guardar nota'}
-                </button>
-              </div>
             </div>
           )}
         </div>
