@@ -1,73 +1,103 @@
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuthStore } from '../stores/authStore';
-import { getNotas, createNota, updateNota, deleteNota, getHorarios } from '../api/portalDocente';
+import { getNotas, createNota, updateNota, deleteNota, getHorarios, getAsistenciasPorHorario } from '../api/portalDocente';
 import type { NotaClase, HorarioDetalle } from '../types';
 import Loading from '../components/ui/Loading';
 import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
-import NotesFilterBar from '../components/domain/NotesFilterBar';
+import CascadeFilters from '../components/domain/CascadeFilters';
 import NotesInlineForm from '../components/domain/NotesInlineForm';
 import { useWindowWidth } from '../hooks/useWindowWidth';
+import { useFilterURLSync } from '../hooks/useFilterURLSync';
 import { formatDate } from '../utils/formatters';
+
+type NoteNivel = 'general' | 'dia' | 'taller' | 'clase' | 'alumno' | 'todas';
 
 const NotesPage = memo(() => {
   const cicloActivo = useAuthStore((s) => s.cicloActivo);
   const width = useWindowWidth();
   const isMobile = width <= 768;
 
+  const { state: filterState, onChange: onFilterChange } = useFilterURLSync();
+
   const [notas, setNotas] = useState<NotaClase[]>([]);
   const [horarios, setHorarios] = useState<HorarioDetalle[]>([]);
+  const [fechas, setFechas] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Filters
-  const [tallerFilter, setTallerFilter] = useState<number | null>(null);
-  const [horaFilter, setHoraFilter] = useState<number | null>(null);
+  // Nivel filter
+  const [nivelFilter, setNivelFilter] = useState<NoteNivel>('todas');
 
   // Editing state
   const [showForm, setShowForm] = useState(false);
   const [editingNota, setEditingNota] = useState<NotaClase | null>(null);
 
-  // Unique hour slots for filter mapping
-  const horaSlots = useMemo(() => {
-    const set = new Set<string>();
+  // Taller and hora options for CascadeFilters
+  const talleres = useMemo(() => {
+    const map = new Map<number, string>();
     for (const h of horarios) {
-      set.add(`${h.hora_inicio}-${h.hora_fin}`);
+      if (h.taller_id && !map.has(h.taller_id)) {
+        map.set(h.taller_id, h.taller_nombre);
+      }
     }
-    return Array.from(set).sort();
+    return Array.from(map.entries()).map(([id, nombre]) => ({ id, nombre }));
   }, [horarios]);
 
-  // Map horaFilter index to horario_ids
-  const horarioIdsForFilter = useMemo(() => {
-    if (horaFilter === null || horaFilter >= horaSlots.length) return null;
-    const slot = horaSlots[horaFilter];
-    const [hInicio] = slot.split('-');
-    return horarios
-      .filter((h) => h.hora_inicio === hInicio)
-      .map((h) => h.id);
-  }, [horaFilter, horaSlots, horarios]);
+  const horas = useMemo(() => {
+    const horasSet = new Set<string>();
+    for (const h of horarios) {
+      horasSet.add(`${h.hora_inicio}-${h.hora_fin}`);
+    }
+    return Array.from(horasSet).sort().map((slot) => {
+      const [inicio, fin] = slot.split('-');
+      return { inicio, fin, horarioId: 0 };
+    });
+  }, [horarios]);
 
   // Filtered notas (client-side)
   const filteredNotas = useMemo(() => {
     let result = [...notas];
 
-    // Filter by taller
-    if (tallerFilter !== null) {
+    // Filter by nivel
+    if (nivelFilter !== 'todas') {
+      // For now, only "clase" level exists via getNotas; others are filtered client-side
+      // This is a placeholder — API-based nivel filtering would be ideal
+      if (nivelFilter === 'clase') {
+        // all notas from getNotas are "clase" level by default
+      } else {
+        // For other levels, return empty for now (APIs not unified yet)
+        return [];
+      }
+    }
+
+    // Filter by taller via horarios
+    if (filterState.tallerId !== null) {
       const tallerHorarioIds = horarios
-        .filter((h) => h.taller_id === tallerFilter)
+        .filter((h) => h.taller_id === filterState.tallerId)
         .map((h) => h.id);
       result = result.filter((n) => tallerHorarioIds.includes(n.horario));
     }
 
-    if (horaFilter !== null && horarioIdsForFilter) {
-      result = result.filter((n) => horarioIdsForFilter.includes(n.horario));
+    // Filter by hora
+    if (filterState.hora) {
+      const [horaInicio] = filterState.hora.split('-');
+      const horaHorarioIds = horarios
+        .filter((h) => h.hora_inicio === horaInicio)
+        .map((h) => h.id);
+      result = result.filter((n) => horaHorarioIds.includes(n.horario));
+    }
+
+    // Filter by fecha
+    if (filterState.fecha) {
+      result = result.filter((n) => n.fecha === filterState.fecha);
     }
 
     return result.sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
-  }, [notas, tallerFilter, horaFilter, horarios, horarioIdsForFilter]);
+  }, [notas, nivelFilter, filterState, horarios]);
 
   const fetchData = useCallback(async () => {
     if (!cicloActivo) {
@@ -77,12 +107,24 @@ const NotesPage = memo(() => {
     setLoading(true);
     setError(null);
     try {
-      const [notasData, horariosData] = await Promise.all([
+      const [notasData, horariosData, asistenciaData] = await Promise.all([
         getNotas(cicloActivo.id),
         getHorarios(cicloActivo.id),
+        getAsistenciasPorHorario(cicloActivo.id),
       ]);
       setNotas(notasData);
       setHorarios(horariosData);
+
+      // Extract unique dates from attendance data for CascadeFilters
+      const dateSet = new Set<string>();
+      if (asistenciaData?.horarios) {
+        for (const h of asistenciaData.horarios) {
+          for (const f of h.fechas) {
+            dateSet.add(f);
+          }
+        }
+      }
+      setFechas(Array.from(dateSet).sort());
     } catch {
       setError('Error al cargar las notas');
     } finally {
@@ -172,7 +214,7 @@ const NotesPage = memo(() => {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 'var(--space-6)',
+        marginBottom: 'var(--space-5)',
       }}>
         <h1 style={{
           fontFamily: 'var(--font-heading)',
@@ -208,14 +250,46 @@ const NotesPage = memo(() => {
         </button>
       </div>
 
-      {/* Filter bar */}
-      <NotesFilterBar
-        horarios={horarios}
-        tallerFilter={tallerFilter}
-        horaFilter={horaFilter}
-        onTallerChange={setTallerFilter}
-        onHoraChange={setHoraFilter}
+      {/* CascadeFilters (replaces NotesFilterBar) */}
+      <CascadeFilters
+        fechas={fechas}
+        talleres={talleres}
+        horas={horas}
+        selected={filterState}
+        onChange={onFilterChange}
       />
+
+      {/* Nivel filter dropdown */}
+      <div style={{
+        display: 'flex',
+        gap: 'var(--space-3)',
+        flexWrap: 'wrap',
+        marginBottom: 'var(--space-4)',
+      }}>
+        <select
+          value={nivelFilter}
+          onChange={(e) => setNivelFilter(e.target.value as NoteNivel)}
+          style={{
+            padding: 'var(--space-2) var(--space-3)',
+            fontSize: 'var(--text-sm)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--color-surface)',
+            color: 'var(--color-text)',
+            fontFamily: 'var(--font-body)',
+            minWidth: 160,
+            minHeight: 44,
+          }}
+          aria-label="Filtrar por nivel"
+        >
+          <option value="todas">Todos los niveles</option>
+          <option value="general">General</option>
+          <option value="dia">Día</option>
+          <option value="taller">Taller</option>
+          <option value="clase">Clase</option>
+          <option value="alumno">Alumno</option>
+        </select>
+      </div>
 
       {/* Inline create/edit form */}
       {showForm && (

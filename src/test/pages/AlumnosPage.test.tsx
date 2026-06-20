@@ -14,15 +14,13 @@ vi.mock('../../stores/authStore', () => ({
   },
 }));
 
+const mockGetAlumnosCartilla = vi.fn();
 const mockGetHorarios = vi.fn();
-const mockGetAsistencias = vi.fn();
-const mockGetNotas = vi.fn();
-const mockGetNotasAlumno = vi.fn();
+const mockGetAsistenciasPorHorario = vi.fn();
 vi.mock('../../api/portalDocente', () => ({
+  getAlumnosCartilla: (...args: unknown[]) => mockGetAlumnosCartilla(...args),
   getHorarios: (...args: unknown[]) => mockGetHorarios(...args),
-  getAsistencias: (...args: unknown[]) => mockGetAsistencias(...args),
-  getNotas: (...args: unknown[]) => mockGetNotas(...args),
-  getNotasAlumno: (...args: unknown[]) => mockGetNotasAlumno(...args),
+  getAsistenciasPorHorario: (...args: unknown[]) => mockGetAsistenciasPorHorario(...args),
 }));
 
 describe('AlumnosPage', () => {
@@ -30,33 +28,56 @@ describe('AlumnosPage', () => {
     vi.clearAllMocks();
   });
 
-  it('renders student list in Level3 session detail', async () => {
+  it('renders student list from cartilla data', async () => {
+    mockGetAlumnosCartilla.mockResolvedValueOnce([
+      {
+        id: 1,
+        nombre: 'Ana',
+        apellido: 'García',
+        dni: '11111111',
+        telefono: '999111222',
+        email: 'ana@example.com',
+        horarios: [
+          { id: 1, taller_nombre: 'Guitarra', taller_tipo: 'instrumento', dia_semana: 1, hora_inicio: '10:00', hora_fin: '11:00' },
+        ],
+      },
+      {
+        id: 2,
+        nombre: 'Luis',
+        apellido: 'Pérez',
+        dni: '22222222',
+        telefono: '',
+        email: '',
+        horarios: [
+          { id: 2, taller_nombre: 'Canto', taller_tipo: 'taller', dia_semana: 2, hora_inicio: '14:00', hora_fin: '15:00' },
+        ],
+      },
+    ]);
     mockGetHorarios.mockResolvedValueOnce([
       {
-        id: 1, dia_semana: 1, hora_inicio: '14:00', hora_fin: '15:00',
+        id: 1, dia_semana: 1, hora_inicio: '10:00', hora_fin: '11:00',
         taller_id: 1, taller_nombre: 'Guitarra', taller_tipo: 'instrumento',
         cupo_maximo: 10, profesor: 1, ciclo: 1,
-        alumnos_count: 2,
-        alumnos: [
-          { id: 1, nombre: 'Ana', apellido: 'García', dni: '11111111', telefono: '999111222' },
-          { id: 2, nombre: 'Luis', apellido: 'Pérez', dni: '22222222' },
-        ],
+        alumnos_count: 1,
+        alumnos: [{ id: 1, nombre: 'Ana', apellido: 'García', dni: '11111111' }],
       },
-    ]);
-    mockGetAsistencias.mockResolvedValueOnce([
       {
-        horario: { id: 1, dia_semana: 1, hora_inicio: '14:00', hora_fin: '15:00', taller_nombre: 'Guitarra', taller_tipo: 'instrumento' },
-        registros: [
-          { alumno: { id: 1, nombre: 'Ana', apellido: 'García', dni: '11111111' }, estado: 'presente' },
-          { alumno: { id: 2, nombre: 'Luis', apellido: 'Pérez', dni: '22222222' }, estado: 'ausente' },
-        ],
+        id: 2, dia_semana: 2, hora_inicio: '14:00', hora_fin: '15:00',
+        taller_id: 2, taller_nombre: 'Canto', taller_tipo: 'taller',
+        cupo_maximo: 10, profesor: 1, ciclo: 1,
+        alumnos_count: 1,
+        alumnos: [{ id: 2, nombre: 'Luis', apellido: 'Pérez', dni: '22222222' }],
       },
     ]);
-    mockGetNotas.mockResolvedValueOnce([]);
-    mockGetNotasAlumno.mockResolvedValueOnce([]);
+    mockGetAsistenciasPorHorario.mockResolvedValueOnce({
+      horarios: [
+        { horario_id: 1, taller_nombre: 'Guitarra', dia_semana: 1, hora_inicio: '10:00', hora_fin: '11:00', total_clases: 2, fechas: ['2026-06-15', '2026-06-16'] },
+        { horario_id: 2, taller_nombre: 'Canto', dia_semana: 2, hora_inicio: '14:00', hora_fin: '15:00', total_clases: 2, fechas: ['2026-06-15', '2026-06-17'] },
+      ],
+    });
 
     render(
-      <MemoryRouter initialEntries={['/alumnos?horarioId=1']}>
+      <MemoryRouter initialEntries={['/alumnos']}>
         <AlumnosPage />
       </MemoryRouter>
     );
@@ -66,8 +87,38 @@ describe('AlumnosPage', () => {
     expect(await screen.findByText('Luis Pérez')).toBeInTheDocument();
   });
 
-  it('shows empty state when no horarios exist', async () => {
+  it('shows loading state initially', () => {
+    mockGetAlumnosCartilla.mockResolvedValueOnce([]);
     mockGetHorarios.mockResolvedValueOnce([]);
+    mockGetAsistenciasPorHorario.mockResolvedValueOnce({ horarios: [] });
+
+    render(
+      <MemoryRouter initialEntries={['/alumnos']}>
+        <AlumnosPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Cargando alumnos...')).toBeInTheDocument();
+  });
+
+  it('shows empty state when no estudiantes', async () => {
+    mockGetAlumnosCartilla.mockResolvedValueOnce([]);
+    mockGetHorarios.mockResolvedValueOnce([]);
+    mockGetAsistenciasPorHorario.mockResolvedValueOnce({ horarios: [] });
+
+    render(
+      <MemoryRouter initialEntries={['/alumnos']}>
+        <AlumnosPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('No hay alumnos inscritos en este ciclo')).toBeInTheDocument();
+  });
+
+  it('renders CascadeFilters and AlumnoTable components', async () => {
+    mockGetAlumnosCartilla.mockResolvedValueOnce([]);
+    mockGetHorarios.mockResolvedValueOnce([]);
+    mockGetAsistenciasPorHorario.mockResolvedValueOnce({ horarios: [] });
 
     render(
       <MemoryRouter initialEntries={['/alumnos']}>
@@ -76,33 +127,9 @@ describe('AlumnosPage', () => {
     );
 
     expect(await screen.findByText('Mis Alumnos')).toBeInTheDocument();
-  });
-
-  it('shows empty attendance state in Level3 when horario has no registros', async () => {
-    mockGetHorarios.mockResolvedValueOnce([
-      {
-        id: 1, dia_semana: 1, hora_inicio: '14:00', hora_fin: '15:00',
-        taller_id: 1, taller_nombre: 'Guitarra', taller_tipo: 'instrumento',
-        cupo_maximo: 10, profesor: 1, ciclo: 1,
-        alumnos_count: 0,
-        alumnos: [],
-      },
-    ]);
-    mockGetAsistencias.mockResolvedValueOnce([
-      {
-        horario: { id: 1, dia_semana: 1, hora_inicio: '14:00', hora_fin: '15:00', taller_nombre: 'Guitarra', taller_tipo: 'instrumento' },
-        registros: [],
-      },
-    ]);
-    mockGetNotas.mockResolvedValueOnce([]);
-    mockGetNotasAlumno.mockResolvedValueOnce([]);
-
-    render(
-      <MemoryRouter initialEntries={['/alumnos?horarioId=1']}>
-        <AlumnosPage />
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByText('Sin registros de asistencia para esta fecha.')).toBeInTheDocument();
+    // CascadeFilters should render its filter dropdowns
+    expect(await screen.findByLabelText('Filtrar por fecha')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Filtrar por taller')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Filtrar por hora')).toBeInTheDocument();
   });
 });
