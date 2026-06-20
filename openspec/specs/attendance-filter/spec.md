@@ -2,55 +2,63 @@
 
 ## Purpose
 
-Replace the flat attendance list with a two-step browsing flow: select a horario from a grouped summary, then filter by specific date.
+Attendance browsing is absorbed into CascadeFilters and AlumnoProfile. Teachers access attendance data through: (1) CascadeFilters on AlumnosPage for cross-student views, (2) AlumnoProfile SidePanel for individual student history.
 
 ## Requirements
 
 ### Requirement: Grouped Horario Summary
 
-The attendance page MUST display a grouped summary where each horario shows `taller_nombre`, `dia_semana`, `hora_inicio`, `hora_fin`, and total class count.
+The attendance browsing flow MUST be absorbed into CascadeFilters and AlumnoProfile. The standalone grouped horario card view is removed. Teachers access attendance data through: (1) CascadeFilters on AlumnosPage for cross-student views, (2) AlumnoProfile SidePanel for individual student history.
 
-#### Scenario: Teacher sees grouped horarios
+(Previously: Standalone grouped horario cards on attendance page)
 
-- GIVEN a teacher with 3 active horarios in the current cycle
-- WHEN the attendance page loads
-- THEN 3 horario cards are displayed grouped by taller
+#### Scenario: Attendance via CascadeFilters
 
-#### Scenario: No horarios for cycle
+- GIVEN a teacher with 3 active horarios
+- WHEN the teacher sets fecha + taller + hora in CascadeFilters
+- THEN the student table filters to students in that specific class
+- AND no separate attendance page navigation is needed
 
-- GIVEN a teacher with no horarios in the current cycle
-- WHEN the attendance page loads
-- THEN an empty state message is shown: "No tienes horarios en este ciclo"
+#### Scenario: Attendance via AlumnoProfile
+
+- GIVEN the SidePanel is open for a student
+- WHEN the DaySelector shows a date
+- THEN AttendanceHistory displays the student's attendance for that date
+- AND taller, horario, and estado are shown
 
 ### Requirement: Date Drill-Down
 
-When a horario card is selected, the system MUST display a date-filtered list of attendance records for that specific horario.
+The date drill-down MUST happen through DaySelector in AlumnoProfile SidePanel, not through a standalone date list. Each student's attendance is viewed individually.
 
-#### Scenario: Select horario shows attendance dates
+(Previously: Date drill-down was a full-page list of dates per horario)
 
-- GIVEN a horario with attendance records on 5 different dates
-- WHEN the teacher taps the horario card
-- THEN a list of dates is shown, each with a count of present/absent/tardanza students
+#### Scenario: View student attendance by date
 
-#### Scenario: Filter by specific date
+- GIVEN the SidePanel is open for student "Juan Pérez"
+- WHEN the teacher taps "15/06" in DaySelector
+- THEN Juan's attendance for 2026-06-15 is displayed
+- AND shows: taller name, horario range, estado badge
 
-- GIVEN the date list for a horario
-- WHEN the teacher selects "2026-06-15"
-- THEN the detailed attendance list for that date is displayed
+#### Scenario: No classes on selected date
 
-### Requirement: ≤2 Taps to Specific Class
+- GIVEN the SidePanel is open
+- WHEN DaySelector shows a date with no classes
+- THEN AttendanceHistory shows: "Sin clases programadas para este día"
 
-The flow from page load to viewing a specific class date MUST require at most 2 taps: (1) select horario, (2) select date.
+### Requirement: Progressive Filtering Flow
 
-#### Scenario: Two-tap navigation
+The flow from page load to viewing a specific class attendance is: (1) open table, (2) optionally filter with CascadeFilters, (3) tap "Inspeccionar" to see individual attendance. The concept of "taps to a specific class" is replaced by progressive filtering.
 
-- GIVEN the attendance page is loaded
-- WHEN the teacher taps a horario card and then a date
-- THEN the detailed attendance for that date is visible
+#### Scenario: Access student attendance
+
+- GIVEN the AlumnosPage is loaded
+- WHEN the teacher taps "Inspeccionar" on a student
+- THEN the SidePanel opens showing today's attendance
+- AND the teacher can browse other dates via DaySelector
 
 ### Requirement: API Contract
 
-The backend MUST provide a grouped endpoint for attendance browsing.
+The `GET /api/portal/ciclos/{id}/asistencias/por-horario/` endpoint REMAINS but is now consumed by CascadeFilters for filter option computation, not for direct UI rendering.
 
 **Endpoint**: `GET /api/portal/ciclos/{id}/asistencias/por-horario/`
 
@@ -71,21 +79,21 @@ Response shape:
 }
 ```
 
-#### Scenario: API returns grouped data
+#### Scenario: CascadeFilters consume por-horario data
 
-- GIVEN a teacher with 2 horarios
-- WHEN `GET /api/portal/ciclos/{id}/asistencias/por-horario/` is called
-- THEN the response contains a `horarios` array with 2 entries
-- AND each entry includes `fechas` array of recorded dates
+- GIVEN the AlumnosPage mounts
+- WHEN `getAsistenciasPorHorario()` is called
+- THEN the response is used to populate fecha options in CascadeFilters
+- AND no grouped cards are rendered from this data
 
 ## Impact Analysis
 
 ### Backend
-- **File**: `core/views/portal_docente/asistencia_view.py` — add `por_horario` action returning grouped data
-- **New endpoint**: `GET /api/portal/ciclos/{id}/asistencias/por-horario/`
-- **No new models** — queries existing `Asistencia` + `Horario` tables
+- **File**: `core/views/portal_docente/asistencia_view.py` — `por_horario` action remains unchanged
+- **No new endpoints** — existing `GET /api/portal/ciclos/{id}/asistencias/por-horario/` is now consumed by CascadeFilters
 
 ### Frontend
-- **File**: `frontend/src/pages/HorariosPage.tsx` — replace flat list with grouped card view + date drill-down
-- **File**: `frontend/src/api/portalDocente.ts` — add `getAsistenciasPorHorario()` API call
-- **New types**: `HorarioResumen`, `FechaAsistencia`
+- **File**: `src/components/domain/CascadeFilters.tsx` — consumes `getAsistenciasPorHorario()` for fecha options
+- **File**: `src/pages/AlumnosPage.tsx` — mounts CascadeFilters + AlumnoTable
+- **File**: `src/components/domain/AlumnoProfile.tsx` — student-centric attendance view
+- **Deleted**: Level1DayOverview, Level2TallerSessions, Level3SessionDetail — replaced by progressive filtering

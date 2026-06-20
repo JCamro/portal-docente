@@ -193,6 +193,7 @@ export interface NotaDia {
 
 export interface HorarioBadge {
   id: number;
+  taller_id?: number;
   taller_nombre: string;
   taller_tipo: string;
   dia_semana: number;

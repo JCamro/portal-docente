@@ -7,7 +7,6 @@ import type { CascadeFiltersProps } from '../../types/alumnos';
  * Each selection reduces options in subsequent stages.
  */
 const CascadeFilters = memo<CascadeFiltersProps>(({
-  fechas,
   talleres,
   horas,
   selected,
@@ -33,34 +32,49 @@ const CascadeFilters = memo<CascadeFiltersProps>(({
       flexWrap: 'wrap',
       marginBottom: 'var(--space-4)',
     }}>
-      {/* Fecha filter */}
-      <select
-        value={selected.fecha ?? ''}
-        onChange={(e) => onChange('fecha', e.target.value || null)}
-        style={{
-          padding: 'var(--space-2) var(--space-3)',
-          fontSize: 'var(--text-sm)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-md)',
-          background: 'var(--color-surface)',
-          color: 'var(--color-text)',
-          fontFamily: 'var(--font-body)',
-          minWidth: 140,
-          minHeight: 44,
-        }}
-        aria-label="Filtrar por fecha"
-      >
-        <option value="">Todas las fechas</option>
-        {fechas.map((f) => (
-          <option key={f} value={f}>
-            {new Date(f + 'T12:00:00').toLocaleDateString('es-PE', {
-              timeZone: 'America/Lima',
-              day: '2-digit',
-              month: '2-digit',
-            })}
-          </option>
-        ))}
-      </select>
+      {/* Fecha filter — date input */}
+      <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+        <input
+          type="date"
+          value={selected.fecha ?? ''}
+          onChange={(e) => onChange('fecha', e.target.value || null)}
+          style={{
+            padding: 'var(--space-2) var(--space-3)',
+            fontSize: 'var(--text-sm)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--color-surface)',
+            color: 'var(--color-text)',
+            fontFamily: 'var(--font-body)',
+            minWidth: 140,
+            minHeight: 44,
+          }}
+          aria-label="Filtrar por fecha"
+        />
+        {selected.fecha && (
+          <button
+            onClick={() => onChange('fecha', null)}
+            style={{
+              padding: 'var(--space-2)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-border)',
+              background: 'transparent',
+              color: 'var(--color-text-muted)',
+              cursor: 'pointer',
+              fontSize: 'var(--text-xs)',
+              minHeight: 44,
+              minWidth: 44,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            aria-label="Limpiar fecha"
+            title="Limpiar fecha"
+          >
+            ✕
+          </button>
+        )}
+      </div>
 
       {/* Taller filter */}
       <select

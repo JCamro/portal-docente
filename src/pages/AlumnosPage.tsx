@@ -193,7 +193,7 @@ const AlumnosPage = memo(() => {
     // Filter by tallerId
     if (filterState.tallerId !== null) {
       result = result.filter((a) =>
-        a.horarios.some((h) => h.id === filterState.tallerId)
+        a.horarios.some((h) => h.taller_id === filterState.tallerId)
       );
     }
 
@@ -291,7 +291,6 @@ const AlumnosPage = memo(() => {
         cicloId={cicloActivo.id}
         onClose={handleClosePanel}
         alumnos={alumnos}
-        horarios={horarios}
         fechas={fechas}
       />
     </div>
