@@ -148,10 +148,28 @@ export interface NotaClase {
   id: number;
   horario: number;
   horario_info?: Horario;
+  taller_nombre?: string;
   fecha: string;
   contenido: string;
   created_at: string;
   updated_at?: string;
+}
+
+export interface HorarioResumen {
+  horario_id: number;
+  taller_nombre: string;
+  dia_semana: number;
+  hora_inicio: string;
+  hora_fin: string;
+  total_clases: number;
+  fechas: string[];
+}
+
+export interface FechaAsistenciaResumen {
+  fecha: string;
+  presente: number;
+  ausente: number;
+  tardanza: number;
 }
 
 export interface NotaAlumno {

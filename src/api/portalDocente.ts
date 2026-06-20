@@ -12,6 +12,7 @@ import type {
   NotaDia,
   PagoProfesorPortal,
   AlumnoCartilla,
+  HorarioResumen,
 } from '../types';
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -106,6 +107,17 @@ export const getHorasTrabajadas = async (
   return response.data;
 };
 
+// ─── Asistencias por Horario ─────────────────────────────────────────────────
+
+export const getAsistenciasPorHorario = async (
+  cicloId: number
+): Promise<{ horarios: HorarioResumen[] }> => {
+  const response = await api.get<{ horarios: HorarioResumen[] }>(
+    `/portal-docente/ciclos/${cicloId}/asistencias/por-horario/`
+  );
+  return response.data;
+};
+
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 export const getDashboard = async (cicloId: number): Promise<DashboardDocente> => {
@@ -117,13 +129,14 @@ export const getDashboard = async (cicloId: number): Promise<DashboardDocente> =
 
 export const getNotas = async (
   cicloId: number,
-  params?: { horario_id?: number; fecha?: string }
+  params?: { horario_id?: number; fecha?: string; ciclo_id?: number }
 ): Promise<NotaClase[]> => {
   let url = `/portal-docente/ciclos/${cicloId}/notas/`;
   if (params) {
     const searchParams = new URLSearchParams();
     if (params.horario_id) searchParams.set('horario_id', String(params.horario_id));
     if (params.fecha) searchParams.set('fecha', params.fecha);
+    if (params.ciclo_id) searchParams.set('ciclo_id', String(params.ciclo_id));
     const qs = searchParams.toString();
     if (qs) url += `?${qs}`;
   }
