@@ -1,4 +1,5 @@
 import React from 'react';
+import { getTodayString } from '../../utils/formatters';
 
 interface DatePickerProps {
   value: string;
@@ -8,7 +9,7 @@ interface DatePickerProps {
 }
 
 const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, label, maxDate }) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayString();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>

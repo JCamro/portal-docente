@@ -8,7 +8,7 @@ import EmptyState from '../components/ui/EmptyState';
 import DatePicker from '../components/ui/DatePicker';
 import { useWindowWidth } from '../hooks/useWindowWidth';
 import { ESTADO_HT_MAP } from '../utils/constants';
-import { formatMonto, formatDate } from '../utils/formatters';
+import { formatMonto, formatDate, formatDateToString } from '../utils/formatters';
 
 const HorasTrabajadasPage = memo(() => {
   const cicloActivo = useAuthStore((s) => s.cicloActivo);
@@ -22,8 +22,8 @@ const HorasTrabajadasPage = memo(() => {
   const [records, setRecords] = useState<HoraTrabajada[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [fechaDesde, setFechaDesde] = useState(firstOfMonth.toISOString().split('T')[0]);
-  const [fechaHasta, setFechaHasta] = useState(lastOfMonth.toISOString().split('T')[0]);
+  const [fechaDesde, setFechaDesde] = useState(formatDateToString(firstOfMonth));
+  const [fechaHasta, setFechaHasta] = useState(formatDateToString(lastOfMonth));
   const [filtroEstado, setFiltroEstado] = useState('');
 
   const fetchData = async () => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { DIA_SEMANA_CORTO, jsDayToBackendDay } from '../../utils/constants';
-import { formatDate } from '../../utils/formatters';
+import { formatDate, getTodayString } from '../../utils/formatters';
 import NoteEditor from './NoteEditor';
 import { getNotasDia, createNotaDia, updateNotaDia } from '../../api/portalDocente';
 import type { NotaDia, HorarioDetalle } from '../../types';
@@ -20,8 +20,6 @@ interface Level1DayOverviewProps {
   onSelectDate: (date: string) => void;
   onSelectTaller: (tallerId: number) => void;
 }
-
-const getTodayString = () => new Date().toISOString().split('T')[0];
 
 const Level1DayOverview: React.FC<Level1DayOverviewProps> = ({
   cicloId,
@@ -103,10 +101,18 @@ const Level1DayOverview: React.FC<Level1DayOverviewProps> = ({
     const monday = new Date(today);
     monday.setDate(today.getDate() + mondayOffset);
 
+    // Helper to format date as YYYY-MM-DD in local timezone
+    const formatLocalDate = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
-      return d.toISOString().split('T')[0];
+      return formatLocalDate(d);
     });
   }, []);
 

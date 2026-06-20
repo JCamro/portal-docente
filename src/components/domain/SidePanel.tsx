@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useWindowWidth } from '../../hooks/useWindowWidth';
 import { getHorarioDetalle, getAsistencias } from '../../api/portalDocente';
 import { DIA_SEMANA_MAP, ESTADO_ASISTENCIA_MAP, formatHora } from '../../utils/constants';
-import { formatDate } from '../../utils/formatters';
+import { formatDate, getTodayString } from '../../utils/formatters';
 import type { HorarioDetalle, AsistenciaPorHorario } from '../../types';
 import Loading from '../ui/Loading';
 
@@ -20,7 +20,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, horarioId, cicloId, onClo
   const [detalle, setDetalle] = useState<HorarioDetalle | null>(null);
   const [asistencias, setAsistencias] = useState<AsistenciaPorHorario[]>([]);
   const [loading, setLoading] = useState(false);
-  const [fecha, setFecha] = useState(() => new Date().toISOString().split('T')[0]);
+  const [fecha, setFecha] = useState(() => getTodayString());
 
   useEffect(() => {
     if (!horarioId || !isOpen) return;

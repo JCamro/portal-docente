@@ -1,6 +1,7 @@
 import { memo, useState, useMemo } from 'react';
 import type { HorarioDetalle } from '../../types';
 import { DIA_SEMANA_MAP, formatHora } from '../../utils/constants';
+import { getTodayString } from '../../utils/formatters';
 
 interface NotesInlineFormProps {
   horarios: HorarioDetalle[];
@@ -58,7 +59,7 @@ const NotesInlineForm = memo<NotesInlineFormProps>(({
 
     onSave({
       horario_id: selectedHorarioId,
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: getTodayString(),
       contenido: contenido.trim(),
     });
   };

@@ -12,6 +12,29 @@ export function formatMonto(monto: number): string {
 }
 
 /**
+ * Get today's date as YYYY-MM-DD string in local timezone.
+ * Avoids UTC timezone shift issues from toISOString().
+ */
+export function getTodayString(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Format a Date object as YYYY-MM-DD string in local timezone.
+ * Avoids UTC timezone shift issues from toISOString().
+ */
+export function formatDateToString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Format a date string to a readable format in Spanish.
  */
 export function formatDate(dateStr: string): string {

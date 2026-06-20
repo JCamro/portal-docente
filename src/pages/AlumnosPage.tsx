@@ -11,7 +11,7 @@ import Level2TallerSessions from '../components/domain/Level2TallerSessions';
 import Level3SessionDetail from '../components/domain/Level3SessionDetail';
 import { useWindowWidth } from '../hooks/useWindowWidth';
 
-const getTodayString = () => new Date().toISOString().split('T')[0];
+import { getTodayString } from '../utils/formatters';
 
 const AlumnosPage = memo(() => {
   const cicloActivo = useAuthStore((s) => s.cicloActivo);
