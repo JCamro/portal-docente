@@ -1,24 +1,34 @@
 // Constants for portal-docente
+// Backend uses: 0=Lunes, 1=Martes, ..., 6=Domingo (Python weekday())
+// Frontend JS getDay() uses: 0=Domingo, 1=Lunes, ..., 6=Sábado
+// We align with backend convention (0=Lunes)
 
 export const DIA_SEMANA_MAP: Record<number, string> = {
-  0: 'Domingo',
-  1: 'Lunes',
-  2: 'Martes',
-  3: 'Miércoles',
-  4: 'Jueves',
-  5: 'Viernes',
-  6: 'Sábado',
+  0: 'Lunes',
+  1: 'Martes',
+  2: 'Miércoles',
+  3: 'Jueves',
+  4: 'Viernes',
+  5: 'Sábado',
+  6: 'Domingo',
 };
 
 export const DIA_SEMANA_CORTO: Record<number, string> = {
-  0: 'Dom',
-  1: 'Lun',
-  2: 'Mar',
-  3: 'Mié',
-  4: 'Jue',
-  5: 'Vie',
-  6: 'Sáb',
+  0: 'Lun',
+  1: 'Mar',
+  2: 'Mié',
+  3: 'Jue',
+  4: 'Vie',
+  5: 'Sáb',
+  6: 'Dom',
 };
+
+// Convert JS getDay() (0=Domingo) to backend convention (0=Lunes)
+export function jsDayToBackendDay(jsDay: number): number {
+  // JS: 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
+  // BE: 0=Lun, 1=Mar, 2=Mié, 3=Jue, 4=Vie, 5=Sáb, 6=Dom
+  return jsDay === 0 ? 6 : jsDay - 1;
+}
 
 export const ESTADO_ASISTENCIA_MAP: Record<string, { label: string; color: string; bg: string }> = {
   // Backend states

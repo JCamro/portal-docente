@@ -1,0 +1,39 @@
+schema: spec-driven
+
+context: |
+  Portal Docente — Frontend separado que consume API Django del sistema-asistencia-taller.
+  Stack: React 19 + Vite 8 + TypeScript 5.9 (strict) + Zustand 5 + react-router-dom 7.
+  Backend: Django 6.0.3 + DRF 3.17.1 + SimpleJWT (en repo separado).
+  Testing: Vitest 3.2 + @testing-library/react + jsdom.
+  Style: ESLint 9 + Prettier (semi, singleQuote, 100 width).
+  Proxy: /api → localhost:8000 (dev server en port 5175).
+  Language: Spanish (user-facing), English (code artifacts).
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Reference backend API contracts when applicable
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - Include frontend + backend impact analysis
+  design:
+    - Include component hierarchy for UI changes
+    - Document state management decisions (Zustand stores)
+    - Reference backend API endpoints when relevant
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - Separate frontend and backend tasks when cross-cutting
+  apply:
+    - Follow existing code patterns (memo() on pages, ResponsiveTable for lists)
+    - Prefer inline styles + CSS utility classes over new CSS files
+    - Always wrap page components with memo()
+    tdd: true
+    test_command: "npm run test"
+  verify:
+    test_command: "npm run test"
+    build_command: "npm run build"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas

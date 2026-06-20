@@ -63,7 +63,7 @@ export interface AsistenciaDocente extends Asistencia {
 
 export interface AsistenciaRegistro {
   alumno: AlumnoInfo;
-  estado: 'presente' | 'ausente' | 'tardanza';
+  estado: 'asistio' | 'falta' | 'falta_grave' | 'presente' | 'ausente' | 'tardanza';
 }
 
 export interface AsistenciaPorHorario {

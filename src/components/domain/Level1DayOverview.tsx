@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DIA_SEMANA_MAP } from '../../utils/constants';
+import { DIA_SEMANA_CORTO, jsDayToBackendDay } from '../../utils/constants';
 import { formatDate } from '../../utils/formatters';
 import NoteEditor from './NoteEditor';
 import { getNotasDia, createNotaDia, updateNotaDia } from '../../api/portalDocente';
@@ -33,10 +33,10 @@ const Level1DayOverview: React.FC<Level1DayOverviewProps> = ({
   const [notaDia, setNotaDia] = useState<NotaDia | null>(null);
   const [notaDiaLoading, setNotaDiaLoading] = useState(false);
 
-  // Derive day of week from selected date
+  // Derive day of week from selected date (convert JS getDay to backend convention)
   const selectedDayOfWeek = useMemo(() => {
     const d = new Date(selectedDate + 'T12:00:00');
-    return d.getDay(); // 0=Sun, 1=Mon, ...
+    return jsDayToBackendDay(d.getDay()); // Convert JS 0=Sun to backend 0=Mon
   }, [selectedDate]);
 
   // Filter horarios for selected day
@@ -134,7 +134,8 @@ const Level1DayOverview: React.FC<Level1DayOverviewProps> = ({
         }}>
           {weekDates.map((date) => {
             const d = new Date(date + 'T12:00:00');
-            const dayName = DIA_SEMANA_MAP[d.getDay()]?.slice(0, 3) || '';
+            const backendDay = jsDayToBackendDay(d.getDay());
+            const dayName = DIA_SEMANA_CORTO[backendDay] || '';
             const dayNum = d.getDate();
             const isToday = date === getTodayString();
             const isSelected = date === selectedDate;

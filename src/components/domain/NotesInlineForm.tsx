@@ -1,4 +1,4 @@
-import React, { memo, useState, useMemo } from 'react';
+import { memo, useState, useMemo } from 'react';
 import type { HorarioDetalle } from '../../types';
 import { DIA_SEMANA_MAP, formatHora } from '../../utils/constants';
 
