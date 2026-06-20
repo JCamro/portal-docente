@@ -1,54 +1,81 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useWindowWidth } from '../../hooks/useWindowWidth';
-import { getHorarioDetalle, getAsistencias } from '../../api/portalDocente';
-import { DIA_SEMANA_MAP, ESTADO_ASISTENCIA_MAP, formatHora } from '../../utils/constants';
-import { formatDate, getTodayString } from '../../utils/formatters';
-import type { HorarioDetalle, AsistenciaPorHorario } from '../../types';
-import Loading from '../ui/Loading';
+import { getAsistencias } from '../../api/portalDocente';
+import { getTodayString, formatDate } from '../../utils/formatters';
+import AlumnoProfile from './AlumnoProfile';
+import DaySelector from './DaySelector';
+import AttendanceHistory from './AttendanceHistory';
+import NoteSection from './NoteSection';
+import type { AlumnoCartilla, AsistenciaPorHorario, HorarioDetalle } from '../../types';
 
 interface SidePanelProps {
   isOpen: boolean;
-  horarioId: number | null;
+  alumnoId: number | null;
   cicloId: number;
   onClose: () => void;
+  alumnos: AlumnoCartilla[];
+  horarios: HorarioDetalle[];
+  fechas: string[];
 }
 
-const SidePanel: React.FC<SidePanelProps> = ({ isOpen, horarioId, cicloId, onClose }) => {
+const SidePanel: React.FC<SidePanelProps> = ({
+  isOpen,
+  alumnoId,
+  cicloId,
+  onClose,
+  alumnos,
+  horarios,
+  fechas,
+}) => {
   const width = useWindowWidth();
   const isMobile = width <= 768;
 
-  const [detalle, setDetalle] = useState<HorarioDetalle | null>(null);
+  const [selectedDate, setSelectedDate] = useState(() => getTodayString());
   const [asistencias, setAsistencias] = useState<AsistenciaPorHorario[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [fecha, setFecha] = useState(() => getTodayString());
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
 
+  // Find alumno from pre-fetched list
+  const alumno = useMemo(() => {
+    if (!alumnoId) return null;
+    return alumnos.find((a) => a.id === alumnoId) || null;
+  }, [alumnos, alumnoId]);
+
+  // Reset date when alumno changes
   useEffect(() => {
-    if (!horarioId || !isOpen) return;
+    if (alumnoId) {
+      setSelectedDate(getTodayString());
+      setAsistencias([]);
+    }
+  }, [alumnoId]);
+
+  // Fetch attendance when date or alumno changes
+  useEffect(() => {
+    if (!alumnoId || !isOpen || !alumno) return;
     let cancelled = false;
 
-    const fetchData = async () => {
-      setLoading(true);
+    const fetchAttendance = async () => {
+      setAttendanceLoading(true);
       try {
-        const [det, asis] = await Promise.all([
-          getHorarioDetalle(cicloId, horarioId),
-          getAsistencias(cicloId, horarioId, fecha),
-        ]);
+        // Fetch attendance for ALL horarios the student is enrolled in
+        const promises = alumno.horarios.map((h) =>
+          getAsistencias(cicloId, h.id, selectedDate)
+            .catch(() => [] as AsistenciaPorHorario[])
+        );
+        const results = await Promise.all(promises);
         if (cancelled) return;
-        setDetalle(det);
-        setAsistencias(asis);
+        setAsistencias(results.flat());
       } catch {
-        // ignore errors
+        // ignore
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setAttendanceLoading(false);
       }
     };
-    fetchData();
+
+    fetchAttendance();
     return () => { cancelled = true; };
-  }, [horarioId, cicloId, fecha, isOpen]);
+  }, [alumnoId, isOpen, cicloId, selectedDate, alumno]);
 
   const panelWidth = isMobile ? '100vw' : 400;
-
-  const allRegistros = asistencias.flatMap(a => a.registros || []);
 
   return (
     <>
@@ -100,15 +127,15 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, horarioId, cicloId, onClo
               color: 'var(--color-text)',
               margin: 0,
             }}>
-              {detalle?.taller_nombre || 'Detalle de clase'}
+              {alumno ? `${alumno.nombre} ${alumno.apellido}` : 'Perfil del alumno'}
             </h2>
-            {detalle && (
+            {alumno && (
               <p style={{
                 fontSize: 'var(--text-xs)',
                 color: 'var(--color-text-muted)',
                 margin: 'var(--space-1) 0 0 0',
               }}>
-                {DIA_SEMANA_MAP[detalle.dia_semana]} | {formatHora(detalle.hora_inicio)} - {formatHora(detalle.hora_fin)}
+                {alumno.dni}
               </p>
             )}
           </div>
@@ -136,140 +163,99 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, horarioId, cicloId, onClo
           </button>
         </div>
 
-        {/* Date selector */}
-        <div style={{
-          padding: 'var(--space-3) var(--space-4)',
-          borderBottom: '1px solid var(--color-border)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--space-3)',
-        }}>
-          <label style={{
-            fontSize: 'var(--text-xs)',
-            fontWeight: 600,
-            color: 'var(--color-text-muted)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            whiteSpace: 'nowrap',
-          }}>
-            Fecha
-          </label>
-          <input
-            type="date"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-            style={{
-              padding: 'var(--space-2) var(--space-3)',
-              fontSize: 'var(--text-sm)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--color-surface)',
-              color: 'var(--color-text)',
-              fontFamily: 'var(--font-body)',
-              flex: 1,
-            }}
-          />
-        </div>
-
         {/* Content */}
         <div style={{
           flex: 1,
           overflowY: 'auto',
           padding: 'var(--space-4)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--space-5)',
         }}>
-          {loading ? (
-            <Loading message="Cargando..." />
-          ) : !detalle ? (
-            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', textAlign: 'center', padding: 'var(--space-8) 0' }}>
-              Selecciona una clase para ver sus detalles.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-              {/* Summary */}
-              <div style={{
-                background: 'var(--color-surface)',
-                borderRadius: 'var(--radius-lg)',
-                padding: 'var(--space-4)',
-                border: '1px solid var(--color-border)',
+          {/* AlumnoProfile section */}
+          <section>
+            <AlumnoProfile
+              alumno={alumno}
+              loading={false}
+            />
+          </section>
+
+          {/* DaySelector section */}
+          {alumno && (
+            <section>
+              <h3 style={{
+                fontSize: 'var(--text-xs)',
+                fontWeight: 700,
+                color: 'var(--color-text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                margin: 0,
+                marginBottom: 'var(--space-2)',
               }}>
-                <p style={{
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: 600,
-                  color: 'var(--color-text)',
-                  margin: 0,
-                  marginBottom: 'var(--space-1)',
-                }}>
-                  {detalle.alumnos_count} {detalle.alumnos_count === 1 ? 'alumno inscrito' : 'alumnos inscritos'}
-                </p>
-                <p style={{
-                  fontSize: 'var(--text-xs)',
-                  color: 'var(--color-text-muted)',
-                  margin: 0,
-                }}>
-                  {detalle.taller_tipo === 'instrumento' ? 'Instrumento' : 'Taller'}
-                </p>
-              </div>
+                Seleccionar día
+              </h3>
+              <DaySelector
+                dates={fechas}
+                selected={selectedDate}
+                onChange={setSelectedDate}
+              />
+            </section>
+          )}
 
-              {/* Attendance list */}
-              <div>
-                <h3 style={{
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: 700,
-                  color: 'var(--color-text)',
-                  fontFamily: 'var(--font-heading)',
-                  margin: 0,
-                  marginBottom: 'var(--space-3)',
-                }}>
-                  Asistencia - {formatDate(fecha)}
-                </h3>
-                {allRegistros.length === 0 ? (
-                  <p style={{
-                    fontSize: 'var(--text-xs)',
-                    color: 'var(--color-text-muted)',
-                    textAlign: 'center',
-                    padding: 'var(--space-4) 0',
-                  }}>
-                    Sin registros de asistencia para esta fecha.
-                  </p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                    {allRegistros.map((r, idx) => {
-                      const estadoInfo = ESTADO_ASISTENCIA_MAP[r.estado] || ESTADO_ASISTENCIA_MAP.ausente;
-                      return (
-                        <div key={idx} style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: 'var(--space-2) var(--space-3)',
-                          background: 'var(--color-surface)',
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid var(--color-border)',
-                        }}>
-                          <span style={{
-                            fontSize: 'var(--text-xs)',
-                            fontWeight: 500,
-                            color: 'var(--color-text)',
-                          }}>
-                            {r.alumno.nombre} {r.alumno.apellido}
-                          </span>
-                          <span style={{
-                            padding: 'var(--space-1) var(--space-2)',
-                            borderRadius: 'var(--radius-md)',
-                            fontSize: 10,
-                            fontWeight: 600,
-                            background: estadoInfo.bg,
-                            color: estadoInfo.color,
-                          }}>
-                            {estadoInfo.label}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+          {/* AttendanceHistory section */}
+          {alumno && (
+            <section>
+              <h3 style={{
+                fontSize: 'var(--text-xs)',
+                fontWeight: 700,
+                color: 'var(--color-text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                margin: 0,
+                marginBottom: 'var(--space-2)',
+              }}>
+                Asistencia - {formatDate(selectedDate)}
+              </h3>
+              <AttendanceHistory
+                asistencias={asistencias}
+                loading={attendanceLoading}
+              />
+            </section>
+          )}
 
-            </div>
+          {/* NoteSection section */}
+          {alumno && (
+            <section>
+              <h3 style={{
+                fontSize: 'var(--text-xs)',
+                fontWeight: 700,
+                color: 'var(--color-text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                margin: 0,
+                marginBottom: 'var(--space-2)',
+              }}>
+                Notas
+              </h3>
+              <NoteSection
+                alumnoId={alumno.id}
+                cicloId={cicloId}
+                selectedDate={selectedDate}
+                horarios={horarios}
+              />
+            </section>
+          )}
+
+          {/* Empty state when no alumno */}
+          {!alumno && alumnoId && (
+            <p style={{
+              fontSize: 'var(--text-sm)',
+              color: 'var(--color-text-muted)',
+              textAlign: 'center',
+              padding: 'var(--space-8) 0',
+            }}>
+              Selecciona un alumno para ver su perfil.
+            </p>
           )}
         </div>
       </div>
