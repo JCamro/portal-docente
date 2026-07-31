@@ -9,7 +9,7 @@ import DatePicker from '../components/ui/DatePicker';
 import SummaryBar from '../components/domain/horarios/SummaryBar';
 import HoursWorkedSheet from '../components/domain/horarios/HoursWorkedSheet';
 import { useWindowWidth } from '../hooks/useWindowWidth';
-import { getTodayString, formatDate } from '../utils/formatters';
+import { getTodayString } from '../utils/formatters';
 import { DIA_SEMANA_MAP, jsDayToBackendDay } from '../utils/constants';
 
 function parseLocalDate(dateStr: string): Date {
@@ -32,8 +32,8 @@ function formatDayHeaderPdf(dateStr: string): string {
 
 async function exportToPDF(
   data: HoraTrabajadaDetalleResponse,
-  fechaDesde: string,
-  fechaHasta: string,
+  _fechaDesde: string,
+  _fechaHasta: string,
   profesorNombre: string,
 ): Promise<void> {
   const { jsPDF } = await import('jspdf');
@@ -42,37 +42,50 @@ async function exportToPDF(
 
   const margin = 40;
   const pageWidth = doc.internal.pageSize.getWidth();
+  const center = pageWidth / 2;
   const maxWidth = pageWidth - margin * 2;
-  let y = margin;
+  const lineH = 14;
+  let y = 50;
 
-  // Header
-  doc.setFontSize(18);
+  const checkPage = (needed = 40) => {
+    if (y + needed > 780) { doc.addPage(); y = margin; }
+  };
+
+  // ── Header centrado ──
   doc.setFont(FONT, 'bold');
-  doc.text('Horas Trabajadas', margin, y);
-  y += 22;
-
+  doc.setFontSize(20);
+  doc.text('TALLER DE MÚSICA ELGUERA', center, y, { align: 'center' });
+  y += 24;
   doc.setFontSize(11);
   doc.setFont(FONT, 'normal');
-  doc.text(`${profesorNombre}`, margin, y);
-  y += 14;
+  doc.text('CONTABILIZACIÓN DE HORAS TRABAJADAS', center, y, { align: 'center' });
+  y += 30;
 
-  doc.setFontSize(9);
-  doc.setTextColor(100, 100, 100);
-  doc.text(`${formatDate(fechaDesde)} — ${formatDate(fechaHasta)}`, margin, y);
-  y += 20;
-  doc.setTextColor(0, 0, 0);
+  // ── Info block ──
+  doc.setFontSize(11);
+  doc.setFont(FONT, 'bold');
+  doc.text('DOCENTE:', margin, y);
+  doc.setFont(FONT, 'normal');
+  doc.text(`  ${profesorNombre}`, margin + 62, y);
+  y += lineH + 2;
 
-  // Summary: only own hours (exclude sustituto)
+  doc.setFont(FONT, 'bold');
+  doc.text('TALLER:', margin, y);
+  // nombres únicos de talleres
+  const talleresSet = new Set<string>();
+  for (const day of data.days) {
+    for (const w of day.talleres) talleresSet.add(w.taller_nombre);
+  }
+  doc.setFont(FONT, 'normal');
+  doc.text(`  ${[...talleresSet].join(', ')}`, margin + 62, y);
+  y += lineH + 2;
+
+  // Resumen: solo horas propias
   let totalHorasPropias = 0;
-  let totalClasesPropias = 0;
-  let totalAlumnosPropias = 0;
   for (const day of data.days) {
     for (const w of day.talleres) {
       for (const s of w.slots) {
         if (!s.es_sustituto) {
-          totalClasesPropias += 1;
-          totalAlumnosPropias += s.num_alumnos;
-          // ponytail: approximate hour duration from start/end
           const [h1, m1] = s.hora_inicio.split(':').map(Number);
           const [h2, m2] = s.hora_fin.split(':').map(Number);
           if (!isNaN(h1) && !isNaN(h2)) {
@@ -83,76 +96,67 @@ async function exportToPDF(
     }
   }
 
-  doc.setFontSize(10);
   doc.setFont(FONT, 'bold');
-  doc.text('Resumen del período', margin, y);
-  y += 14;
+  doc.text('RESUMEN DEL PERIODO:', margin, y);
   doc.setFont(FONT, 'normal');
-  doc.setFontSize(9);
-  doc.text(`Total horas trabajadas: ${totalHorasPropias.toFixed(1)}h`, margin, y);
-  y += 12;
-  doc.text(`Clases dictadas: ${totalClasesPropias}`, margin, y);
-  y += 12;
-  doc.text(`Total alumnos: ${totalAlumnosPropias}`, margin, y);
-  y += 18;
+  doc.text(`  ${totalHorasPropias.toFixed(1)} Horas trabajadas en total`, margin + 155, y);
+  y += lineH + 20;
 
-  // Days
+  // ── Días ──
   for (const day of data.days) {
-    if (y > 700) {
-      doc.addPage();
-      y = margin;
-    }
+    checkPage(60);
 
     doc.setFontSize(12);
     doc.setFont(FONT, 'bold');
     doc.text(formatDayHeaderPdf(day.fecha), margin, y);
-    y += 16;
-    doc.setFont(FONT, 'normal');
+    y += lineH + 6;
 
     for (const workshop of day.talleres) {
-      // Workshop name as sub-header
-      doc.setFontSize(10);
-      doc.setFont(FONT, 'bold');
-      doc.text(workshop.taller_nombre, margin, y);
-      y += 14;
-      doc.setFontSize(9);
-      doc.setFont(FONT, 'normal');
-
       for (const slot of workshop.slots) {
-        const studentsText =
-          slot.alumnos.length > 0
-            ? slot.alumnos.map((a) => a.nombre_completo).join(', ')
-            : 'Sin alumnos registrados';
+        checkPage(50);
 
         const timeLabel = `${slot.hora_inicio}–${slot.hora_fin}`;
-        let row = `${timeLabel} | ${studentsText}`;
+        doc.setFontSize(10);
+        doc.setFont(FONT, 'bold');
+        doc.text(timeLabel, margin, y);
 
         if (slot.es_sustituto) {
-          row += `\n  ↳ Dictada por ${slot.profesor_que_trabajo} — No contabilizada`;
+          doc.setFont(FONT, 'normal');
+          doc.setFontSize(9);
+          const sustText = `  (DICTADA POR ${slot.profesor_que_trabajo} — No contabilizada)`;
+          doc.text(sustText, margin + doc.getTextWidth(timeLabel) + 4, y);
+        }
+        y += lineH;
+
+        // Alumnos con viñetas
+        doc.setFontSize(10);
+        doc.setFont(FONT, 'normal');
+        if (slot.alumnos.length > 0) {
+          for (const a of slot.alumnos) {
+            doc.text(`•   ${a.nombre_completo}`, margin + 16, y);
+            y += lineH;
+          }
+        } else {
+          doc.text('•   Sin alumnos registrados', margin + 16, y);
+          y += lineH;
         }
 
-        const wrapped = doc.splitTextToSize(row, maxWidth);
-        doc.text(wrapped, margin, y);
-        y += wrapped.length * 12 + 6;
-
+        // Nota en itálica
         if (slot.nota_clase) {
+          checkPage(30);
           doc.setFont(FONT, 'italic');
-          const noteWrapped = doc.splitTextToSize(`Nota: ${slot.nota_clase}`, maxWidth - 20);
+          doc.setFontSize(9);
+          const noteWrapped = doc.splitTextToSize(`NOTA: ${slot.nota_clase}`, maxWidth - 20);
           doc.text(noteWrapped, margin + 16, y);
-          y += noteWrapped.length * 12 + 6;
+          y += noteWrapped.length * lineH + 4;
           doc.setFont(FONT, 'normal');
         }
 
-        if (y > 760) {
-          doc.addPage();
-          y = margin;
-        }
+        y += 6;
       }
-
-      y += 4;
     }
 
-    y += 12;
+    y += 10;
   }
 
   doc.save('horas-trabajadas.pdf');
