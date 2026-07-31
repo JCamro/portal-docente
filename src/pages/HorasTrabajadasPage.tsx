@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { getHorasTrabajadasDetalle } from '../api/portalDocente';
 import type { HoraTrabajadaDetalleResponse } from '../types';
@@ -106,6 +106,11 @@ const HorasTrabajadasPage = memo(() => {
   const isMobile = width <= 768;
 
   const todayStr = getTodayString();
+  const maxDateStr = useMemo(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().split('T')[0];
+  }, []);
 
   const [data, setData] = useState<HoraTrabajadaDetalleResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -208,10 +213,10 @@ const HorasTrabajadasPage = memo(() => {
         }}
       >
         <div style={{ flex: 1, minWidth: 150 }}>
-          <DatePicker value={fechaDesde} onChange={setFechaDesde} label="Desde" />
+          <DatePicker value={fechaDesde} onChange={setFechaDesde} label="Desde" maxDate={maxDateStr} />
         </div>
         <div style={{ flex: 1, minWidth: 150 }}>
-          <DatePicker value={fechaHasta} onChange={setFechaHasta} label="Hasta" />
+          <DatePicker value={fechaHasta} onChange={setFechaHasta} label="Hasta" maxDate={maxDateStr} />
         </div>
         <button
           onClick={handleExportPDF}
