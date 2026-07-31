@@ -212,6 +212,9 @@ interface RawSlot {
   monto_profesor: string;
   observacion?: string;
   nota_clase?: string | null;
+  es_sustituto?: boolean;
+  profesor_que_trabajo?: string;
+  profesor_titular?: string;
   alumnos?: Array<{ nombre_completo: string; estado: string }>;
   [key: string]: unknown;
 }
@@ -250,8 +253,11 @@ function computeSummaryFromDays(days: HoraTrabajadaDetalleResponse['days']): Hor
       for (const slot of workshop.slots) {
         totalClases += 1;
         totalAlumnos += slot.num_alumnos;
-        totalMonto += parseFloat(slot.monto_profesor || '0');
-        totalHoras += slotDuration(slot);
+        // Sustituto: no cuenta monto ni horas para el profesor titular
+        if (!slot.es_sustituto) {
+          totalMonto += parseFloat(slot.monto_profesor || '0');
+          totalHoras += slotDuration(slot);
+        }
       }
     }
   }
@@ -281,6 +287,9 @@ function normalizeRawSlot(raw: RawSlot): HoraTrabajadaDetalleResponse['days'][nu
       nombre_completo: a.nombre_completo,
       estado: a.estado as 'asistio' | 'falta' | 'falta_grave',
     })),
+    es_sustituto: raw.es_sustituto ?? false,
+    profesor_que_trabajo: raw.profesor_que_trabajo ?? '',
+    profesor_titular: raw.profesor_titular ?? '',
   };
 }
 

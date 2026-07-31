@@ -221,13 +221,44 @@ const SheetSlot: React.FC<SheetSlotProps> = React.memo(({ slot, fecha, isMobile,
           style={{
             fontFamily: 'var(--font-heading)',
             fontSize: 'var(--text-base)',
-            color: 'var(--color-gold)',
+            color: slot.es_sustituto ? 'var(--color-text-muted)' : 'var(--color-gold)',
             whiteSpace: 'nowrap',
           }}
         >
-          {formatMonto(parseFloat(slot.monto_profesor || '0'))}
+          {slot.es_sustituto ? (
+            <span style={{ textDecoration: 'line-through', opacity: 0.5 }}>
+              {formatMonto(parseFloat(slot.monto_profesor || '0'))}
+            </span>
+          ) : (
+            formatMonto(parseFloat(slot.monto_profesor || '0'))
+          )}
         </span>
       </div>
+
+      {slot.es_sustituto && (
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 'var(--space-1)',
+            padding: 'var(--space-1) var(--space-2)',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: 'var(--text-xs)',
+            fontWeight: 500,
+            background: 'rgba(212, 175, 55, 0.08)',
+            color: 'var(--color-gold)',
+            border: '1px solid rgba(212, 175, 55, 0.2)',
+            marginBottom: 'var(--space-3)',
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          Dictada por {slot.profesor_que_trabajo} — No se contabiliza en tu pago
+        </div>
+      )}
 
       {slot.alumnos.length === 0 ? (
         <p

@@ -149,6 +149,9 @@ export interface HoraTrabajadaDetalleSlot {
   observacion: string;
   nota_clase: string | null;
   alumnos: HoraTrabajadaDetalleAlumno[];
+  es_sustituto: boolean;
+  profesor_que_trabajo: string;
+  profesor_titular: string;
 }
 
 export interface HoraTrabajadaDetalleWorkshop {
