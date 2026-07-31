@@ -5,12 +5,14 @@ const initialFilterState: FilterState = {
   fecha: null,
   tallerId: null,
   hora: null,
+  estado: null,
+  search: null,
+  dia_semana: null,
 };
 
 function filterReducer(state: FilterState, action: FilterAction): FilterState {
   switch (action.type) {
     case 'SET_FECHA': {
-      // Selecting a fecha resets hora; taller stays (but gets reduced options)
       return {
         ...state,
         fecha: action.payload,
@@ -18,7 +20,6 @@ function filterReducer(state: FilterState, action: FilterAction): FilterState {
       };
     }
     case 'SET_TALLER': {
-      // Selecting a taller resets hora
       return {
         ...state,
         tallerId: action.payload,
@@ -29,6 +30,24 @@ function filterReducer(state: FilterState, action: FilterAction): FilterState {
       return {
         ...state,
         hora: action.payload,
+      };
+    }
+    case 'SET_ESTADO': {
+      return {
+        ...state,
+        estado: action.payload,
+      };
+    }
+    case 'SET_SEARCH': {
+      return {
+        ...state,
+        search: action.payload,
+      };
+    }
+    case 'SET_DIA_SEMANA': {
+      return {
+        ...state,
+        dia_semana: action.payload,
       };
     }
     case 'RESET_ALL': {
@@ -57,6 +76,18 @@ export function useFilterReducer(initial?: Partial<FilterState>) {
     dispatch({ type: 'SET_HORA', payload: hora });
   }, []);
 
+  const setEstado = useCallback((estado: string | null) => {
+    dispatch({ type: 'SET_ESTADO', payload: estado });
+  }, []);
+
+  const setSearch = useCallback((search: string | null) => {
+    dispatch({ type: 'SET_SEARCH', payload: search });
+  }, []);
+
+  const setDiaSemana = useCallback((dia_semana: string | null) => {
+    dispatch({ type: 'SET_DIA_SEMANA', payload: dia_semana });
+  }, []);
+
   const resetAll = useCallback(() => {
     dispatch({ type: 'RESET_ALL' });
   }, []);
@@ -67,6 +98,9 @@ export function useFilterReducer(initial?: Partial<FilterState>) {
     setFecha,
     setTaller,
     setHora,
+    setEstado,
+    setSearch,
+    setDiaSemana,
     resetAll,
   };
 }

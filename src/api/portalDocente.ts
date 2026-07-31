@@ -5,6 +5,7 @@ import type {
   Ciclo,
   HorarioDetalle,
   AsistenciaPorHorario,
+  HorarioResumenFecha,
   HoraTrabajada,
   DashboardDocente,
   NotaClase,
@@ -13,6 +14,9 @@ import type {
   PagoProfesorPortal,
   AlumnoCartilla,
   HorarioResumen,
+  PaginatedResponse,
+  AlumnoDetalle,
+  HorariosSemanalesResponse,
 } from '../types';
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -57,21 +61,54 @@ export const getHorarioDetalle = async (cicloId: number, horarioId: number): Pro
   return response.data;
 };
 
+export const getHorariosSemanales = async (cicloId: number): Promise<HorariosSemanalesResponse> => {
+  const response = await api.get<HorariosSemanalesResponse>(`/portal-docente/ciclos/${cicloId}/horarios/semanal/`);
+  return response.data;
+};
+
 // ─── Alumnos (Cartilla) ──────────────────────────────────────────────────────
+
+export interface GetAlumnosCartillaParams {
+  search?: string;
+  taller_id?: number;
+  estado?: string;
+  dia_semana?: string;
+  hora?: string;
+  page?: number;
+}
 
 export const getAlumnosCartilla = async (
   cicloId: number,
-  params?: { search?: string; taller_id?: number }
-): Promise<AlumnoCartilla[]> => {
-  let url = `/portal-docente/ciclos/${cicloId}/alumnos/`;
+  params?: GetAlumnosCartillaParams
+): Promise<PaginatedResponse<AlumnoCartilla>> => {
+  const searchParams = new URLSearchParams();
   if (params) {
-    const searchParams = new URLSearchParams();
     if (params.search) searchParams.set('search', params.search);
     if (params.taller_id) searchParams.set('taller_id', String(params.taller_id));
-    const qs = searchParams.toString();
-    if (qs) url += `?${qs}`;
+    if (params.estado) searchParams.set('estado', params.estado);
+    if (params.dia_semana) searchParams.set('dia_semana', params.dia_semana);
+    if (params.hora) searchParams.set('hora', params.hora);
+    if (params.page) searchParams.set('page', String(params.page));
   }
-  const response = await api.get<AlumnoCartilla[]>(url);
+  const qs = searchParams.toString();
+  let url = `/portal-docente/ciclos/${cicloId}/alumnos/`;
+  if (qs) url += `?${qs}`;
+  const response = await api.get<PaginatedResponse<AlumnoCartilla>>(url);
+  return response.data;
+};
+
+// ─── Alumno Detalle Consolidado ─────────────────────────────────
+
+export const getAlumnoDetalle = async (
+  cicloId: number,
+  alumnoId: number,
+  tallerId?: number
+): Promise<AlumnoDetalle> => {
+  let url = `/portal-docente/ciclos/${cicloId}/alumnos/${alumnoId}/detalle/`;
+  if (tallerId !== undefined) {
+    url += `?taller_id=${tallerId}`;
+  }
+  const response = await api.get<AlumnoDetalle>(url);
   return response.data;
 };
 
@@ -85,6 +122,64 @@ export const getAsistencias = async (
   const response = await api.get<AsistenciaPorHorario[]>(
     `/portal-docente/ciclos/${cicloId}/asistencias/?horario_id=${horarioId}&fecha=${fecha}`
   );
+  return response.data;
+};
+
+export const getHorarioResumenFecha = async (
+  cicloId: number,
+  horarioId: number,
+  fecha: string
+): Promise<HorarioResumenFecha> => {
+  const response = await api.get<HorarioResumenFecha>(
+    `/portal-docente/ciclos/${cicloId}/horarios/${horarioId}/resumen-fecha/`,
+    { params: { fecha } }
+  );
+  return response.data;
+};
+
+// ─── Asistencias por Alumno (SidePanel) ─────────────────────────────────────
+
+export interface MatriculaMini {
+  id: number;
+  taller_nombre: string;
+  taller_id: number;
+  activa: boolean;
+  concluida: boolean;
+  sesiones_contratadas: number;
+}
+
+export interface AsistenciaAlumnoItem {
+  id: number;
+  fecha: string;
+  hora: string;
+  estado: string;
+  horario_id: number;
+}
+
+export interface AlumnoAsistenciaGrupo {
+  matricula: MatriculaMini;
+  asistencias: AsistenciaAlumnoItem[];
+}
+
+export const getAlumnoAsistencias = async (
+  cicloId: number,
+  alumnoId: number,
+  params?: {
+    limite?: number;
+    incluir_concluidas?: boolean;
+    horario_id?: number;
+    fecha?: string;
+  }
+): Promise<AlumnoAsistenciaGrupo[]> => {
+  const searchParams = new URLSearchParams();
+  if (params?.limite) searchParams.set('limite', String(params.limite));
+  if (params?.incluir_concluidas) searchParams.set('incluir_concluidas', 'true');
+  if (params?.horario_id) searchParams.set('horario_id', String(params.horario_id));
+  if (params?.fecha) searchParams.set('fecha', params.fecha);
+  const qs = searchParams.toString();
+  let url = `/portal-docente/ciclos/${cicloId}/alumnos/${alumnoId}/asistencias/`;
+  if (qs) url += `?${qs}`;
+  const response = await api.get<AlumnoAsistenciaGrupo[]>(url);
   return response.data;
 };
 
@@ -146,7 +241,7 @@ export const getNotas = async (
 
 export const createNota = async (
   cicloId: number,
-  data: { horario_id: number; fecha: string; contenido: string }
+  data: { horario: number; fecha: string; contenido: string }
 ): Promise<NotaClase> => {
   const response = await api.post<NotaClase>(`/portal-docente/ciclos/${cicloId}/notas/`, data);
   return response.data;

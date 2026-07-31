@@ -35,10 +35,19 @@ export function formatDateToString(date: Date): string {
 }
 
 /**
+ * Parse a "YYYY-MM-DD" string as local date parts (not UTC).
+ * Avoids the day-shift bug from `new Date(dateStr + 'Z')`.
+ */
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/**
  * Format a date string to a readable format in Spanish.
  */
 export function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'Z');
+  const date = parseLocalDate(dateStr);
   return date.toLocaleDateString('es-PE', {
     timeZone: 'America/Lima',
     day: '2-digit',
@@ -51,7 +60,7 @@ export function formatDate(dateStr: string): string {
  * Format a date string to a long readable format.
  */
 export function formatDateLong(dateStr: string): string {
-  const date = new Date(dateStr + 'Z');
+  const date = parseLocalDate(dateStr);
   return date.toLocaleDateString('es-PE', {
     timeZone: 'America/Lima',
     weekday: 'long',

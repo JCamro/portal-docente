@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect } from 'react';
+import React, { memo, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { getDashboard } from '../api/portalDocente';
@@ -8,7 +8,6 @@ import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
 import KpiCard from '../components/ui/KpiCard';
 import { useWindowWidth } from '../hooks/useWindowWidth';
-import { formatMonto } from '../utils/formatters';
 
 const DashboardPage = memo(() => {
   const navigate = useNavigate();
@@ -19,20 +18,27 @@ const DashboardPage = memo(() => {
   const [data, setData] = useState<DashboardDocente | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [montoRevealed, setMontoRevealed] = useState(false);
+  const [horasShowMes, setHorasShowMes] = useState(false);
+
+  const toggleHoras = useCallback(() => setHorasShowMes((v) => !v), []);
 
   const fetchData = async () => {
     if (!cicloActivo) {
       setLoading(false);
       return;
     }
+
     setLoading(true);
+
     setError(null);
+
     try {
       const result = await getDashboard(cicloActivo.id);
       setData(result);
+      
     } catch {
       setError('Error al cargar el dashboard');
+    
     } finally {
       setLoading(false);
     }
@@ -63,8 +69,8 @@ const DashboardPage = memo(() => {
   if (error) return <ErrorState message={error} onRetry={fetchData} />;
   if (!data) return <EmptyState message="No hay datos disponibles" />;
 
-  const { tiene_pagos } = data;
   const quickLinks = [
+    
     {
       title: 'Mis Alumnos',
       description: 'Cartilla de alumnos y horarios',
@@ -78,8 +84,9 @@ const DashboardPage = memo(() => {
       ),
       onClick: () => navigate('/alumnos'),
     },
+
     {
-      title: 'Horarios de Hoy',
+      title: 'Mis Horarios',
       description: 'Consulta tu horario semanal',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -91,6 +98,7 @@ const DashboardPage = memo(() => {
       ),
       onClick: () => navigate('/horarios'),
     },
+
     {
       title: 'Horas Trabajadas',
       description: 'Historial de horas trabajadas',
@@ -102,11 +110,34 @@ const DashboardPage = memo(() => {
       ),
       onClick: () => navigate('/horas-trabajadas'),
     },
-  ];
 
-  const montoValue = tiene_pagos
-    ? (montoRevealed ? formatMonto(data.monto_acumulado) : 'S/. ****')
-    : 'Sin pagos';
+    {
+      title: 'Mis Notas',
+      description: 'Notas generadas por clase, taller o alumno',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10 9 9 9 8 9" />
+        </svg>
+      ),
+      onClick: () => navigate('/notas'),
+    },
+
+    {
+      title: 'Mis Pagos',
+      description: 'Historial de pagos y movimientos',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23" />
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+      ),
+      onClick: () => navigate('/pagos'),
+    },
+  ];
 
   return (
     <div style={{
@@ -114,12 +145,14 @@ const DashboardPage = memo(() => {
       maxWidth: 1200,
       margin: '0 auto',
     }}>
+
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 'var(--space-6)',
       }}>
+
         <h1 style={{
           fontFamily: 'var(--font-heading)',
           fontSize: isMobile ? 'var(--text-xl)' : 'var(--text-2xl)',
@@ -128,19 +161,22 @@ const DashboardPage = memo(() => {
         }}>
           Dashboard
         </h1>
+
         <span style={{
           fontSize: 'var(--text-sm)',
           color: 'var(--color-text-muted)',
         }}>
           {cicloActivo.nombre}
         </span>
+        
       </div>
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
         gap: 'var(--space-4)',
       }}>
+
         <KpiCard
           label="Clases hoy"
           value={data.clases_hoy}
@@ -154,6 +190,7 @@ const DashboardPage = memo(() => {
             </svg>
           }
         />
+
         <KpiCard
           label="Total alumnos"
           value={data.total_alumnos}
@@ -167,54 +204,39 @@ const DashboardPage = memo(() => {
             </svg>
           }
         />
-        <KpiCard
-          label="Horas este mes"
-          value={`${data.horas_mes.toFixed(1)}h`}
-          color="#3b82f6"
-          icon={
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          }
-        />
+
         <div
-          onClick={() => tiene_pagos && setMontoRevealed(!montoRevealed)}
-          style={{ cursor: tiene_pagos ? 'pointer' : 'default' }}
-          title={tiene_pagos ? (montoRevealed ? 'Ocultar monto' : 'Mostrar monto') : undefined}
+          onClick={toggleHoras}
+          style={{ cursor: 'pointer' }}
+          title="Clic para alternar horas del día / mes"
         >
           <KpiCard
-            label="Monto acumulado"
-            value={montoValue}
-            color="#10b981"
+            label={horasShowMes ? 'Horas este mes' : 'Horas hoy'}
+            value={`${(horasShowMes ? data.horas_mes : data.horas_dia).toFixed(1)}h`}
+            color="#3b82f6"
             icon={
-              montoRevealed && tiene_pagos ? (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                  <line x1="1" y1="1" x2="23" y2="23" />
-                </svg>
-              ) : (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="1" x2="12" y2="23" />
-                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                </svg>
-              )
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
             }
           />
         </div>
+        
       </div>
 
       {/* Quick Links — 3 permanentes */}
       <div style={{
         marginTop: 'var(--space-8)',
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(1, 1fr)',
         gap: 'var(--space-4)',
       }}>
-        {quickLinks.map((link) => (
+
+        {quickLinks.map( (link) => (
           <QuickLink key={link.title} {...link} />
         ))}
+
       </div>
 
       <style>{`

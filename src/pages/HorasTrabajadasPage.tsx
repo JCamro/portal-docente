@@ -7,24 +7,36 @@ import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
 import DatePicker from '../components/ui/DatePicker';
 import { useWindowWidth } from '../hooks/useWindowWidth';
-import { ESTADO_HT_MAP } from '../utils/constants';
-import { formatMonto, formatDate, formatDateToString } from '../utils/formatters';
+import { TIPO_HT_MAP, DIA_SEMANA_CORTO } from '../utils/constants';
+import { formatMonto, getTodayString } from '../utils/formatters';
+
+/** Format date like "Lun 15/06" */
+function formatFechaConDia(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  // JS getDay(): 0=Dom → backend: 0=Lun
+  const jsDay = date.getDay();
+  const backendDay = jsDay === 0 ? 6 : jsDay - 1;
+  const dia = DIA_SEMANA_CORTO[backendDay] || '';
+  return `${dia} ${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}`;
+}
+
+function formatTipo(tipo: string): string {
+  return TIPO_HT_MAP[tipo] || tipo;
+}
 
 const HorasTrabajadasPage = memo(() => {
   const cicloActivo = useAuthStore((s) => s.cicloActivo);
   const width = useWindowWidth();
   const isMobile = width <= 768;
 
-  const today = new Date();
-  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const todayStr = getTodayString();
 
   const [records, setRecords] = useState<HoraTrabajada[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [fechaDesde, setFechaDesde] = useState(formatDateToString(firstOfMonth));
-  const [fechaHasta, setFechaHasta] = useState(formatDateToString(lastOfMonth));
-  const [filtroEstado, setFiltroEstado] = useState('');
+  const [fechaDesde, setFechaDesde] = useState(todayStr);
+  const [fechaHasta, setFechaHasta] = useState(todayStr);
 
   const fetchData = async () => {
     if (!cicloActivo) {
@@ -34,10 +46,9 @@ const HorasTrabajadasPage = memo(() => {
     setLoading(true);
     setError(null);
     try {
-      const params: { fecha_desde?: string; fecha_hasta?: string; estado?: string } = {};
+      const params: { fecha_desde?: string; fecha_hasta?: string } = {};
       if (fechaDesde) params.fecha_desde = fechaDesde;
       if (fechaHasta) params.fecha_hasta = fechaHasta;
-      if (filtroEstado) params.estado = filtroEstado;
       const data = await getHorasTrabajadas(cicloActivo.id, params);
       setRecords(data);
     } catch {
@@ -55,7 +66,7 @@ const HorasTrabajadasPage = memo(() => {
     run();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cicloActivo?.id, fechaDesde, fechaHasta, filtroEstado]);
+  }, [cicloActivo?.id, fechaDesde, fechaHasta]);
 
   if (!cicloActivo) {
     return (
@@ -68,17 +79,16 @@ const HorasTrabajadasPage = memo(() => {
   if (loading && records.length === 0) return <Loading message="Cargando horas trabajadas..." />;
   if (error && records.length === 0) return <ErrorState message={error} onRetry={fetchData} />;
 
-  const totalHoras = records.reduce((sum, r) => sum + r.horas_trabajadas, 0);
+  const totalHoras = records.reduce((sum, r) => sum + Number(r.horas_trabajadas), 0);
   const totalMonto = records.reduce((sum, r) => sum + parseFloat(r.monto_profesor || '0'), 0);
 
   const columnHeaders = [
     { key: 'fecha', label: 'Fecha' },
+    { key: 'taller', label: 'Taller' },
     { key: 'tipo', label: 'Tipo' },
     { key: 'horas', label: 'Horas' },
     { key: 'alumnos', label: 'Alumnos' },
-    { key: 'monto', label: 'Monto Prof.' },
-    { key: 'ganancia', label: 'Ganancia Taller' },
-    { key: 'estado', label: 'Estado' },
+    { key: 'monto', label: 'Monto' },
   ];
 
   return (
@@ -115,43 +125,12 @@ const HorasTrabajadasPage = memo(() => {
         marginBottom: 'var(--space-6)',
         flexDirection: isMobile ? 'column' : 'row',
         alignItems: isMobile ? 'stretch' : 'flex-end',
-        flexWrap: 'wrap',
       }}>
         <div style={{ flex: 1, minWidth: 150 }}>
           <DatePicker value={fechaDesde} onChange={setFechaDesde} label="Desde" />
         </div>
         <div style={{ flex: 1, minWidth: 150 }}>
           <DatePicker value={fechaHasta} onChange={setFechaHasta} label="Hasta" />
-        </div>
-        <div style={{ flex: 1, minWidth: 150, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-          <label style={{
-            fontSize: 'var(--text-xs)',
-            fontWeight: 600,
-            color: 'var(--color-text-muted)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-          }}>
-            Estado
-          </label>
-          <select
-            value={filtroEstado}
-            onChange={(e) => setFiltroEstado(e.target.value)}
-            style={{
-              padding: 'var(--space-3) var(--space-4)',
-              fontSize: 'var(--text-sm)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--color-surface)',
-              color: 'var(--color-text)',
-              fontFamily: 'var(--font-body)',
-              minHeight: 44,
-            }}
-          >
-            <option value="">Todos</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="aprobada">Aprobada</option>
-            <option value="rechazada">Rechazada</option>
-          </select>
         </div>
       </div>
 
@@ -163,10 +142,10 @@ const HorasTrabajadasPage = memo(() => {
           gap: 'var(--space-4)',
           marginBottom: 'var(--space-6)',
         }}>
-          <SummaryCard label="Total horas" value={`${totalHoras.toFixed(1)}h`} />
           <SummaryCard label="Total monto" value={formatMonto(totalMonto)} />
-          <SummaryCard label="Promedio x clase" value={formatMonto(records.length > 0 ? totalMonto / records.length : 0)} />
-          <SummaryCard label="Aprobadas" value={String(records.filter(r => r.estado === 'aprobada').length)} />
+          <SummaryCard label="Total horas" value={`${totalHoras.toFixed(1)}h`} />
+          <SummaryCard label="Clases" value={String(records.length)} />
+          <SummaryCard label="Promedio" value={formatMonto(records.length > 0 ? totalMonto / records.length : 0)} />
         </div>
       )}
 
@@ -177,41 +156,43 @@ const HorasTrabajadasPage = memo(() => {
         />
       ) : isMobile ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          {records.map((r) => {
-            const estadoInfo = ESTADO_HT_MAP[r.estado] || ESTADO_HT_MAP.pendiente;
-            return (
-              <div key={r.id} style={{
-                background: 'var(--color-surface)',
-                borderRadius: 'var(--radius-xl)',
-                padding: 'var(--space-4)',
-                border: '1px solid var(--color-border)',
-                boxShadow: 'var(--shadow-sm)',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
-                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
-                    {formatDate(r.fecha)}
-                  </span>
-                  <span style={{
-                    padding: 'var(--space-1) var(--space-3)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: 'var(--text-xs)',
-                    fontWeight: 600,
-                    background: estadoInfo.bg,
-                    color: estadoInfo.color,
-                  }}>
-                    {estadoInfo.label}
-                  </span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
-                  <InfoRow label="Tipo" value={r.tipo} />
-                  <InfoRow label="Horas" value={`${r.horas_trabajadas}h`} />
-                  <InfoRow label="Alumnos" value={String(r.num_alumnos)} />
-                  <InfoRow label="Monto" value={formatMonto(parseFloat(r.monto_profesor || '0'))} />
-                  <InfoRow label="Ganancia taller" value={formatMonto(parseFloat(r.ganancia_taller || '0'))} />
-                </div>
+          {records.map((r) => (
+            <div key={r.id} style={{
+              background: 'var(--color-surface)',
+              borderRadius: 'var(--radius-xl)',
+              padding: 'var(--space-4)',
+              border: '1px solid var(--color-border)',
+              boxShadow: 'var(--shadow-sm)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
+                  {formatFechaConDia(r.fecha)}
+                </span>
+                <span style={{
+                  padding: 'var(--space-1) var(--space-3)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 600,
+                  background: 'var(--color-gold-light)',
+                  color: 'var(--color-gold-dark)',
+                }}>
+                  {formatTipo(r.tipo)}
+                </span>
               </div>
-            );
-          })}
+              {r.taller_nombre && (
+                <div style={{ marginBottom: 'var(--space-2)' }}>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                    {r.taller_nombre}
+                  </span>
+                </div>
+              )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+                <InfoRow label="Horas" value={`${r.horas_trabajadas}h`} />
+                <InfoRow label="Alumnos" value={String(r.num_alumnos)} />
+                <InfoRow label="Monto" value={formatMonto(parseFloat(r.monto_profesor || '0'))} />
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="card" style={{
@@ -221,7 +202,7 @@ const HorasTrabajadasPage = memo(() => {
           border: '1px solid var(--color-border)',
           overflowX: 'auto',
         }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 650 }}>
             <thead>
               <tr style={{ background: 'var(--color-bg)' }}>
                 {columnHeaders.map(col => (
@@ -230,31 +211,16 @@ const HorasTrabajadasPage = memo(() => {
               </tr>
             </thead>
             <tbody>
-              {records.map((r) => {
-                const estadoInfo = ESTADO_HT_MAP[r.estado] || ESTADO_HT_MAP.pendiente;
-                return (
-                  <tr key={r.id} style={{ borderTop: '1px solid var(--color-border)' }}>
-                    <td style={tdStyle}>{formatDate(r.fecha)}</td>
-                    <td style={tdStyle}>{r.tipo || '-'}</td>
-                    <td style={tdStyle}>{r.horas_trabajadas}h</td>
-                    <td style={tdStyle}>{r.num_alumnos}</td>
-                    <td style={tdStyle}>{formatMonto(parseFloat(r.monto_profesor || '0'))}</td>
-                    <td style={tdStyle}>{formatMonto(parseFloat(r.ganancia_taller || '0'))}</td>
-                    <td style={tdStyle}>
-                      <span style={{
-                        padding: 'var(--space-1) var(--space-3)',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: 'var(--text-xs)',
-                        fontWeight: 600,
-                        background: estadoInfo.bg,
-                        color: estadoInfo.color,
-                      }}>
-                        {estadoInfo.label}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+              {records.map((r) => (
+                <tr key={r.id} style={{ borderTop: '1px solid var(--color-border)' }}>
+                  <td style={tdStyle}>{formatFechaConDia(r.fecha)}</td>
+                  <td style={tdStyle}>{r.taller_nombre || '-'}</td>
+                  <td style={tdStyle}>{formatTipo(r.tipo)}</td>
+                  <td style={tdStyle}>{Number(r.horas_trabajadas).toFixed(1)}h</td>
+                  <td style={tdStyle}>{r.num_alumnos}</td>
+                  <td style={tdStyle}>{formatMonto(parseFloat(r.monto_profesor || '0'))}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

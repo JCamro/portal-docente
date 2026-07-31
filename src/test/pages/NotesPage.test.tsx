@@ -87,9 +87,8 @@ describe('NotesPage', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByLabelText('Filtrar por fecha')).toBeInTheDocument();
     expect(await screen.findByLabelText('Filtrar por taller')).toBeInTheDocument();
-    expect(await screen.findByLabelText('Filtrar por hora')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Buscar alumnos')).toBeInTheDocument();
   });
 
   it('shows nivel filter dropdown', async () => {

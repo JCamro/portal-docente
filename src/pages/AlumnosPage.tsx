@@ -1,23 +1,24 @@
-import { memo, useState, useEffect, useCallback, useMemo } from 'react';
+import { memo, useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { getAlumnosCartilla, getHorarios, getAsistenciasPorHorario } from '../api/portalDocente';
+import { getAlumnosCartilla, getHorarios } from '../api/portalDocente';
 import { useWindowWidth } from '../hooks/useWindowWidth';
 import { useFilterURLSync } from '../hooks/useFilterURLSync';
 import CascadeFilters from '../components/domain/CascadeFilters';
 import AlumnoTable from '../components/domain/AlumnoTable';
-import SidePanel from '../components/domain/SidePanel';
 import Loading from '../components/ui/Loading';
 import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
-import type { AlumnoCartilla, HorarioDetalle, HorarioResumen } from '../types';
+import type { AlumnoCartilla, HorarioDetalle } from '../types';
 
 /**
- * AlumnosPage — Single-page rewrite.
- * Flat student table + cascade filters + inspection side panel.
- * All data fetched once on mount, client-side filtered.
+ * AlumnosPage — Server-side paginated student roster.
+ * All filtering is done server-side via query params.
+ * Student detail opens via route /alumnos/:alumnoId.
  */
 const AlumnosPage = memo(() => {
   const cicloActivo = useAuthStore((s) => s.cicloActivo);
+  const navigate = useNavigate();
   const width = useWindowWidth();
   const isMobile = width <= 768;
 
@@ -25,14 +26,14 @@ const AlumnosPage = memo(() => {
   const { state: filterState, onChange: onFilterChange, resetAll } = useFilterURLSync();
 
   // Data state
-  const [alumnos, setAlumnos] = useState<AlumnoCartilla[]>([]);
+  const [alumnosData, setAlumnosData] = useState<{ results: AlumnoCartilla[]; count: number }>({
+    results: [],
+    count: 0,
+  });
+  const [page, setPage] = useState(1);
   const [horarios, setHorarios] = useState<HorarioDetalle[]>([]);
-  const [asistenciaResumen, setAsistenciaResumen] = useState<{ horarios: HorarioResumen[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // SidePanel state
-  const [panelAlumnoId, setPanelAlumnoId] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!cicloActivo) {
@@ -42,22 +43,49 @@ const AlumnosPage = memo(() => {
     setLoading(true);
     setError(null);
     try {
-      const [alumnosData, horariosData, asistenciaData] = await Promise.all([
-        getAlumnosCartilla(cicloActivo.id),
+      // Fetch students with server-side filters + pagination
+      const cartillaParams: Record<string, string | number | undefined> = {
+        page,
+        search: filterState.search ?? undefined,
+        taller_id: filterState.tallerId ?? undefined,
+        estado: filterState.estado ?? undefined,
+        dia_semana: filterState.dia_semana ?? undefined,
+        hora: filterState.hora ? String(parseInt(filterState.hora.split(':')[0])) : undefined,
+      };
+
+      const [paginatedData, horariosData] = await Promise.all([
+        getAlumnosCartilla(cicloActivo.id, cartillaParams as any),
         getHorarios(cicloActivo.id),
-        getAsistenciasPorHorario(cicloActivo.id),
       ]);
-      setAlumnos(alumnosData);
+
+      setAlumnosData({ results: paginatedData.results, count: paginatedData.count });
       setHorarios(horariosData);
-      setAsistenciaResumen(asistenciaData);
     } catch {
       setError('No se pudieron cargar los alumnos');
     } finally {
       setLoading(false);
     }
-  }, [cicloActivo]);
+  }, [cicloActivo, page, filterState.search, filterState.tallerId, filterState.estado, filterState.dia_semana, filterState.hora]);
+
+  // Fetch data when ciclo, page, or filters change. Reset to page 1 on filter change.
+  const prevFiltersRef = useRef({ search: filterState.search, tallerId: filterState.tallerId, estado: filterState.estado, dia_semana: filterState.dia_semana, hora: filterState.hora });
 
   useEffect(() => {
+    const filters = { search: filterState.search, tallerId: filterState.tallerId, estado: filterState.estado, dia_semana: filterState.dia_semana, hora: filterState.hora };
+    const prev = prevFiltersRef.current;
+    const filtersChanged = (
+      prev.search !== filters.search ||
+      prev.tallerId !== filters.tallerId ||
+      prev.estado !== filters.estado ||
+      prev.dia_semana !== filters.dia_semana ||
+      prev.hora !== filters.hora
+    );
+
+    if (filtersChanged) {
+      setPage(1);
+    }
+    prevFiltersRef.current = filters;
+
     let cancelled = false;
     const run = async () => {
       if (!cancelled) await fetchData();
@@ -66,178 +94,24 @@ const AlumnosPage = memo(() => {
     return () => { cancelled = true; };
   }, [fetchData]);
 
-  // Reset filters when ciclo changes
+  // Reset everything when ciclo changes
   useEffect(() => {
     resetAll();
-    setPanelAlumnoId(null);
+    setPage(1);
   }, [cicloActivo?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Computed: fecha_ultima_asistencia per student ─────────────────────
-  const fechaUltimaAsistencia = useMemo<Record<number, string | null>>(() => {
-    if (!asistenciaResumen) return {};
-
-    const result: Record<number, string | null> = {};
-
-    for (const alumno of alumnos) {
-      let lastDate: string | null = null;
-
-      // For each horario the student is enrolled in
-      for (const horarioBadge of alumno.horarios) {
-        const resumen = asistenciaResumen.horarios.find(
-          (h) => h.horario_id === horarioBadge.id
-        );
-        if (resumen && resumen.fechas.length > 0) {
-          // Find the latest date
-          const maxDate = resumen.fechas.reduce((max, f) =>
-            f > max ? f : max
-          );
-          if (maxDate && (!lastDate || maxDate > lastDate)) {
-            lastDate = maxDate;
-          }
-        }
-      }
-
-      result[alumno.id] = lastDate;
-    }
-
-    return result;
-  }, [alumnos, asistenciaResumen]);
-
-  // ── Computed: filter options ──────────────────────────────────────────
-  const fechas = useMemo<string[]>(() => {
-    if (!asistenciaResumen) return [];
-    const set = new Set<string>();
-    for (const h of asistenciaResumen.horarios) {
-      for (const f of h.fechas) {
-        set.add(f);
-      }
-    }
-    return Array.from(set).sort();
-  }, [asistenciaResumen]);
-
-  const talleres = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const h of horarios) {
-      if (h.taller_id && !map.has(h.taller_id)) {
-        map.set(h.taller_id, h.taller_nombre);
-      }
-    }
-    return Array.from(map.entries()).map(([id, nombre]) => ({ id, nombre }));
-  }, [horarios]);
-
-  const horas = useMemo(() => {
-    const horasSet = new Set<string>();
-    for (const h of horarios) {
-      horasSet.add(`${h.hora_inicio}-${h.hora_fin}`);
-    }
-    return Array.from(horasSet).sort().map((slot) => {
-      const [inicio, fin] = slot.split('-');
-      return { inicio, fin, horarioId: 0 }; // horarioId not needed for filter UI
-    });
-  }, [horarios]);
-
-  // ── Computed: cascade-filtered option arrays ──────────────────────────
-  // These are pre-reduced so dropdowns only show matching options.
-
-  const filteredTalleres = useMemo(() => {
-    if (!filterState.fecha || !asistenciaResumen) return talleres;
-    const horariosOnDate = new Set(
-      asistenciaResumen.horarios
-        .filter((h) => h.fechas.includes(filterState.fecha!))
-        .map((h) => h.horario_id)
-    );
-    const tallerIdsOnDate = new Set<number>();
-    for (const h of horarios) {
-      if (horariosOnDate.has(h.id) && h.taller_id) {
-        tallerIdsOnDate.add(h.taller_id);
-      }
-    }
-    return talleres.filter((t) => tallerIdsOnDate.has(t.id));
-  }, [talleres, filterState.fecha, asistenciaResumen, horarios]);
-
-  const filteredHoras = useMemo(() => {
-    let result = horas;
-    if (filterState.tallerId !== null) {
-      const horarioIdsForTaller = new Set(
-        horarios
-          .filter((h) => h.taller_id === filterState.tallerId)
-          .map((h) => h.id)
-      );
-      result = result.filter((h) => {
-        const horario = horarios.find(
-          (hr) => hr.hora_inicio === h.inicio && hr.hora_fin === h.fin
-        );
-        return horario && horarioIdsForTaller.has(horario.id);
-      });
-    }
-    if (filterState.fecha && asistenciaResumen) {
-      const horariosOnDate = new Set(
-        asistenciaResumen.horarios
-          .filter((h) => h.fechas.includes(filterState.fecha!))
-          .map((h) => h.horario_id)
-      );
-      result = result.filter((h) => {
-        const horario = horarios.find(
-          (hr) => hr.hora_inicio === h.inicio && hr.hora_fin === h.fin
-        );
-        return horario && horariosOnDate.has(horario.id);
-      });
-    }
-    return result;
-  }, [horas, filterState.tallerId, filterState.fecha, horarios, asistenciaResumen]);
-
-  // ── Client-side filtering ─────────────────────────────────────────────
-  const filteredAlumnos = useMemo(() => {
-    let result = [...alumnos];
-
-    // Filter by tallerId
-    if (filterState.tallerId !== null) {
-      result = result.filter((a) =>
-        a.horarios.some((h) => h.taller_id === filterState.tallerId)
-      );
-    }
-
-    // Filter by hora
-    if (filterState.hora) {
-      const [horaInicio] = filterState.hora.split('-');
-      // Get horario IDs matching this hour
-      const matchingHorarioIds = horarios
-        .filter((h) => h.hora_inicio === horaInicio)
-        .map((h) => h.id);
-      result = result.filter((a) =>
-        a.horarios.some((h) => matchingHorarioIds.includes(h.id))
-      );
-    }
-
-    // Filter by fecha — find horarios that have classes on that date
-    if (filterState.fecha && asistenciaResumen) {
-      const horariosOnDate = asistenciaResumen.horarios
-        .filter((h) => h.fechas.includes(filterState.fecha!))
-        .map((h) => h.horario_id);
-      if (horariosOnDate.length > 0) {
-        result = result.filter((a) =>
-          a.horarios.some((h) => horariosOnDate.includes(h.id))
-        );
-      }
-    }
-
-    // Sort by apellido, nombre
-    result.sort((a, b) => {
-      const cmp = a.apellido.localeCompare(b.apellido);
-      if (cmp !== 0) return cmp;
-      return a.nombre.localeCompare(b.nombre);
-    });
-
-    return result;
-  }, [alumnos, filterState, horarios, asistenciaResumen]);
-
   const handleInspect = useCallback((alumnoId: number) => {
-    setPanelAlumnoId(alumnoId);
+    navigate(`/alumnos/${alumnoId}`);
+  }, [navigate]);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
   }, []);
 
-  const handleClosePanel = useCallback(() => {
-    setPanelAlumnoId(null);
-  }, []);
+  // Compute talleres list for CascadeFilters from horarios
+  const talleres = horarios
+    .filter((h, i, arr) => h.taller_id && arr.findIndex((x) => x.taller_id === h.taller_id) === i)
+    .map((h) => ({ id: h.taller_id!, nombre: h.taller_nombre }));
 
   // ── Render ────────────────────────────────────────────────────────────
   if (!cicloActivo) {
@@ -247,9 +121,6 @@ const AlumnosPage = memo(() => {
       </div>
     );
   }
-
-  if (loading) return <Loading message="Cargando alumnos..." />;
-  if (error) return <ErrorState message={error} onRetry={fetchData} />;
 
   return (
     <div style={{
@@ -268,31 +139,31 @@ const AlumnosPage = memo(() => {
         Mis Alumnos
       </h1>
 
-      {/* Cascade filters */}
+      {/* Cascade filters — always visible */}
       <CascadeFilters
-        fechas={fechas}
-        talleres={filteredTalleres}
-        horas={filteredHoras}
+        fechas={[]}
+        talleres={talleres}
+        horas={[]}
         selected={filterState}
         onChange={onFilterChange}
       />
 
-      {/* Student table */}
-      <AlumnoTable
-        alumnos={filteredAlumnos}
-        fechaUltimaAsistencia={fechaUltimaAsistencia}
-        onInspect={handleInspect}
-      />
-
-      {/* SidePanel */}
-      <SidePanel
-        isOpen={panelAlumnoId !== null}
-        alumnoId={panelAlumnoId}
-        cicloId={cicloActivo.id}
-        onClose={handleClosePanel}
-        alumnos={alumnos}
-        fechas={fechas}
-      />
+      {/* Student table or loading/empty state */}
+      {loading && alumnosData.results.length === 0 ? (
+        <Loading message="Cargando alumnos..." />
+      ) : error ? (
+        <ErrorState message={error} onRetry={fetchData} />
+      ) : (
+        <AlumnoTable
+          alumnos={alumnosData.results}
+          count={alumnosData.count}
+          page={page}
+          pageSize={20}
+          onPageChange={handlePageChange}
+          onInspect={handleInspect}
+          loading={loading}
+        />
+      )}
     </div>
   );
 });

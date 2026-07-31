@@ -16,12 +16,18 @@ export function useFilterURLSync() {
   const urlFecha = searchParams.get('fecha');
   const urlTaller = searchParams.get('taller');
   const urlHora = searchParams.get('hora');
+  const urlEstado = searchParams.get('estado');
+  const urlSearch = searchParams.get('search');
+  const urlDiaSemana = searchParams.get('dia_semana');
 
   if (urlFecha) initialFromURL.fecha = urlFecha;
   if (urlTaller) initialFromURL.tallerId = Number(urlTaller);
   if (urlHora) initialFromURL.hora = urlHora;
+  if (urlEstado) initialFromURL.estado = urlEstado;
+  if (urlSearch) initialFromURL.search = urlSearch;
+  if (urlDiaSemana) initialFromURL.dia_semana = urlDiaSemana;
 
-  const { state, setFecha, setTaller, setHora, resetAll } = useFilterReducer(
+  const { state, setFecha, setTaller, setHora, setEstado, setSearch, setDiaSemana, resetAll } = useFilterReducer(
     Object.keys(initialFromURL).length > 0 ? initialFromURL : undefined
   );
 
@@ -36,11 +42,14 @@ export function useFilterURLSync() {
     if (state.fecha) next.set('fecha', state.fecha);
     if (state.tallerId !== null) next.set('taller', String(state.tallerId));
     if (state.hora) next.set('hora', state.hora);
+    if (state.estado) next.set('estado', state.estado);
+    if (state.search) next.set('search', state.search);
+    if (state.dia_semana) next.set('dia_semana', state.dia_semana);
 
     setSearchParams(next, { replace: true });
   }, [state, setSearchParams]);
 
-  const onChange = (field: 'fecha' | 'tallerId' | 'hora', value: string | number | null) => {
+  const onChange = (field: string, value: string | number | null) => {
     switch (field) {
       case 'fecha':
         setFecha(value as string | null);
@@ -51,8 +60,17 @@ export function useFilterURLSync() {
       case 'hora':
         setHora(value as string | null);
         break;
+      case 'estado':
+        setEstado(value as string | null);
+        break;
+      case 'search':
+        setSearch(value as string | null);
+        break;
+      case 'dia_semana':
+        setDiaSemana(value as string | null);
+        break;
     }
   };
 
-  return { state, onChange, resetAll, setFecha, setTaller, setHora };
+  return { state, onChange, resetAll, setFecha, setTaller, setHora, setEstado, setSearch, setDiaSemana };
 }

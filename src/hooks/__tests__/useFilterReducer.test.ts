@@ -3,7 +3,7 @@ import { filterReducer } from '../useFilterReducer';
 import type { FilterState } from '../../types/alumnos';
 
 describe('filterReducer', () => {
-  const initial: FilterState = { fecha: null, tallerId: null, hora: null };
+  const initial: FilterState = { fecha: null, tallerId: null, hora: null, estado: null, search: null, dia_semana: null };
 
   it('returns same state for no-op', () => {
     // @ts-expect-error unknown action type should be handled by default case
@@ -48,9 +48,9 @@ describe('filterReducer', () => {
   });
 
   it('RESET_ALL clears all fields', () => {
-    const state: FilterState = { fecha: '2026-06-15', tallerId: 1, hora: '10:00-11:00' };
+    const state: FilterState = { fecha: '2026-06-15', tallerId: 1, hora: '10:00-11:00', estado: null, search: null, dia_semana: null };
     const result = filterReducer(state, { type: 'RESET_ALL' });
-    expect(result).toEqual({ fecha: null, tallerId: null, hora: null });
+    expect(result).toEqual({ fecha: null, tallerId: null, hora: null, estado: null, search: null, dia_semana: null });
   });
 
   it('dispatches SET_FECHA then SET_TALLER — cascade resets hora each time', () => {

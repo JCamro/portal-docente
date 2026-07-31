@@ -9,9 +9,11 @@ const LoginPage = React.lazy(() => import('./pages/LoginPage'));
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
 const HorariosPage = React.lazy(() => import('./pages/HorariosPage'));
 const AlumnosPage = React.lazy(() => import('./pages/AlumnosPage'));
+const AlumnoDetallePage = React.lazy(() => import('./pages/AlumnoDetallePage'));
 const HorasTrabajadasPage = React.lazy(() => import('./pages/HorasTrabajadasPage'));
 const PagosPage = React.lazy(() => import('./pages/PagosPage'));
 const NotesPage = React.lazy(() => import('./pages/NotesPage'));
+const SeleccionCicloPage = React.lazy(() => import('./pages/SeleccionCicloPage'));
 
 const AuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -120,9 +122,44 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const ProtectedAppLayout: React.FC = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const hasHydrated = useAuthStore((state) => state._hasHydrated);
+  const cicloActivo = useAuthStore((state) => state.cicloActivo);
+
+  // Wait for store to hydrate from localStorage before checking auth
+  if (!hasHydrated) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: 'var(--color-bg)',
+      }}>
+        <div style={{
+          width: 24,
+          height: 24,
+          border: '3px solid var(--color-border)',
+          borderTopColor: 'var(--color-gold)',
+          borderRadius: '50%',
+          animation: 'spin 0.6s linear infinite',
+        }} />
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+
+  // Show cycle selection screen when no cycle is active
+  if (!cicloActivo) {
+    return (
+      <AppLayout>
+        <SeleccionCicloPage />
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <Routes>
@@ -130,6 +167,7 @@ const ProtectedAppLayout: React.FC = () => {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="horarios" element={<HorariosPage />} />
         <Route path="alumnos" element={<AlumnosPage />} />
+        <Route path="alumnos/:alumnoId" element={<AlumnoDetallePage />} />
         <Route path="horas-trabajadas" element={<HorasTrabajadasPage />} />
         <Route path="pagos" element={<PagosPage />} />
         <Route path="notas" element={<NotesPage />} />

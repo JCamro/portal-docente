@@ -51,7 +51,7 @@ export interface Asistencia {
   id: number;
   fecha: string;
   hora: string;
-  estado: 'presente' | 'ausente' | 'tardanza';
+  estado: 'presente' | 'ausente';
   matricula: number;
   horario: number;
   alumno_nombre?: string;
@@ -63,12 +63,35 @@ export interface AsistenciaDocente extends Asistencia {
 
 export interface AsistenciaRegistro {
   alumno: AlumnoInfo;
-  estado: 'asistio' | 'falta' | 'falta_grave' | 'presente' | 'ausente' | 'tardanza';
+  estado: 'asistio' | 'falta' | 'falta_grave' | 'presente' | 'ausente';
+  es_recuperacion?: boolean;
 }
 
 export interface AsistenciaPorHorario {
   horario: Horario;
   registros: AsistenciaRegistro[];
+}
+
+export interface AlumnoResumenEntry {
+  alumno_id: number;
+  nombre: string;
+  apellido: string;
+  dni: string;
+  estado_asistencia: 'asistio' | 'falta' | 'falta_grave' | null;
+  es_recuperacion: boolean;
+  hora_asistencia: string | null;
+  inscripcion_activa: boolean;
+}
+
+export interface HorarioResumenFecha {
+  modo: 'pasado' | 'hoy' | 'futuro';
+  fecha: string;
+  aviso: string | null;
+  horario_id: number;
+  taller_nombre: string;
+  hora_inicio: string;
+  hora_fin: string;
+  registros: AlumnoResumenEntry[];
 }
 
 export interface PagoProfesor {
@@ -106,6 +129,8 @@ export interface HoraTrabajada {
   ganancia_taller: string;
   estado: 'pendiente' | 'aprobada' | 'rechazada';
   observacion: string;
+  taller_nombre?: string;
+  dia_semana?: number;
 }
 
 export interface DashboardData {
@@ -118,9 +143,8 @@ export interface DashboardData {
 export interface DashboardDocente {
   clases_hoy: number;
   total_alumnos: number;
+  horas_dia: number;
   horas_mes: number;
-  monto_acumulado: number;
-  tiene_pagos: boolean;
 }
 
 export interface PagoProfesorPortal {
@@ -169,7 +193,6 @@ export interface FechaAsistenciaResumen {
   fecha: string;
   presente: number;
   ausente: number;
-  tardanza: number;
 }
 
 export interface NotaAlumno {
@@ -208,7 +231,101 @@ export interface AlumnoCartilla {
   dni: string;
   telefono: string;
   email: string;
+  estado: 'activo' | 'historico';
+  fecha_ultima_asistencia: string | null;
   horarios: HorarioBadge[];
+}
+
+// ─── Paginated Response ────────────────────────────────────────
+
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+// ─── Alumno Detalle Consolidado ─────────────────────────────────
+
+export interface AsistenciaAlumnoDetalle {
+  fecha: string;
+  estado: string;
+  hora: string;
+  horario_inicio: string | null;
+  horario_fin: string | null;
+  dia_semana: number | null;
+}
+
+export interface HorarioActivo {
+  horario_id: number;
+  dia_semana: number;
+  hora_inicio: string;
+  hora_fin: string;
+}
+
+export interface MatriculaActiva {
+  id: number;
+  horario_id: number | null;
+  taller_id: number;
+  taller_nombre: string;
+  horarios: HorarioActivo[];
+  dia_semana: number | null;
+  hora_inicio: string | null;
+  hora_fin: string | null;
+  sesiones_contratadas: number;
+  sesiones_consumidas: number;
+  sesiones_disponibles: number;
+  precio_por_sesion: string;
+  asistencias: AsistenciaAlumnoDetalle[];
+}
+
+export interface TallerActivo {
+  matricula_id: number;
+  taller_id: number;
+  taller_nombre: string;
+}
+
+export interface MatriculaHistorica {
+  id: number;
+  taller_id: number;
+  taller_nombre: string;
+  fecha_matricula: string;
+  dia_semana: number | null;
+  hora_inicio: string | null;
+  hora_fin: string | null;
+  sesiones_contratadas: number;
+  sesiones_consumidas: number;
+  concluida: boolean;
+  asistencias: AsistenciaAlumnoDetalle[];
+}
+
+export interface TallerHistoricoGrupo {
+  taller_id: number;
+  taller_nombre: string;
+  matriculas: MatriculaHistorica[];
+}
+
+export interface EstadisticasAlumno {
+  tasa_asistencia: number;
+  total_asistencias: number;
+  total_faltas: number;
+}
+
+export interface EstadisticasTaller {
+  taller_id: number;
+  taller_nombre: string;
+  tasa_asistencia: number;
+  total_asistencias: number;
+  total_faltas: number;
+}
+
+export interface AlumnoDetalle {
+  alumno: AlumnoCartilla;
+  talleres_activos: TallerActivo[] | null;
+  matricula_activa: MatriculaActiva | null;
+  matriculas_historicas: MatriculaHistorica[];
+  estadisticas: EstadisticasAlumno | null;
+  estadisticas_por_taller: EstadisticasTaller[] | null;
 }
 
 export interface LoginResponse {
@@ -216,4 +333,34 @@ export interface LoginResponse {
   refresh: string;
   user: Profesor;
   ciclos: Ciclo[];
+}
+
+// ─── Weekly Schedule Grid ─────────────────────────────────────────
+
+export interface HorarioSemanal {
+  id: number;
+  dia_semana: number; // 0=Lunes..6=Domingo
+  hora_inicio: string; // "HH:MM"
+  hora_fin: string;
+  alumnos_count: number;
+  cupo_maximo: number;
+  cupo_disponible: number;
+  alumnos: AlumnoInfo[];
+}
+
+export interface TallerAgrupado {
+  taller_id: number;
+  taller_nombre: string;
+  taller_tipo: 'instrumento' | 'taller';
+  taller_color: string;
+  horarios: HorarioSemanal[];
+}
+
+export interface HorariosSemanalesResponse {
+  talleres: TallerAgrupado[];
+}
+
+export interface HorarioSemanalConTaller extends HorarioSemanal {
+  taller_nombre: string;
+  taller_color: string;
 }

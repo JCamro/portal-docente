@@ -4,12 +4,18 @@ export interface FilterState {
   fecha: string | null;
   tallerId: number | null;
   hora: string | null; // "HH:mm-HH:mm" format
+  estado: string | null; // 'activo' | 'historico' | 'todos'
+  search: string | null;
+  dia_semana: string | null; // 0..6
 }
 
 export type FilterAction =
   | { type: 'SET_FECHA'; payload: string | null }
   | { type: 'SET_TALLER'; payload: number | null }
   | { type: 'SET_HORA'; payload: string | null }
+  | { type: 'SET_ESTADO'; payload: string | null }
+  | { type: 'SET_SEARCH'; payload: string | null }
+  | { type: 'SET_DIA_SEMANA'; payload: string | null }
   | { type: 'RESET_ALL' };
 
 // Cascade filter component props
@@ -18,14 +24,18 @@ export interface CascadeFiltersProps {
   talleres: { id: number; nombre: string }[];
   horas: { inicio: string; fin: string; horarioId: number }[];
   selected: FilterState;
-  onChange: (field: 'fecha' | 'tallerId' | 'hora', value: string | number | null) => void;
+  onChange: (field: string, value: string | number | null) => void;
 }
 
 // Alumno table component props
 export interface AlumnoTableProps {
   alumnos: import('../types').AlumnoCartilla[];
-  fechaUltimaAsistencia: Record<number, string | null>;
+  count: number;
+  page: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
   onInspect: (alumnoId: number) => void;
+  loading?: boolean;
 }
 
 // SidePanel adapted props
@@ -34,6 +44,8 @@ export interface SidePanelProps {
   alumnoId: number | null;
   cicloId: number;
   onClose: () => void;
+  alumnos?: never;
+  fechas?: never;
 }
 
 // DaySelector component props
@@ -41,12 +53,6 @@ export interface DaySelectorProps {
   dates: string[];
   selected: string;
   onChange: (date: string) => void;
-}
-
-// AlumnoProfile component props
-export interface AlumnoProfileProps {
-  alumno: import('../types').AlumnoCartilla | null;
-  loading: boolean;
 }
 
 // AttendanceHistory component props

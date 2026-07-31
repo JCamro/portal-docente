@@ -46,9 +46,6 @@ describe('HorasTrabajadasPage', () => {
 
     expect(await screen.findByText('Horas Trabajadas')).toBeInTheDocument();
     expect(await screen.findByText('2 registros')).toBeInTheDocument();
-    // Use getAllByText since status labels appear in both the filter dropdown and data
-    expect(screen.getAllByText('Aprobada').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Pendiente').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows empty state when no records found', async () => {

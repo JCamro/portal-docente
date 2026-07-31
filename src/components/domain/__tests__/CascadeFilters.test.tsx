@@ -4,42 +4,45 @@ import CascadeFilters from '../CascadeFilters';
 import type { FilterState } from '../../../types/alumnos';
 
 describe('CascadeFilters', () => {
-  const fechas = ['2026-06-15', '2026-06-16', '2026-06-17'];
   const talleres = [
     { id: 1, nombre: 'Guitarra' },
     { id: 2, nombre: 'Canto' },
     { id: 3, nombre: 'Piano' },
   ];
-  const horas = [
-    { inicio: '10:00', fin: '11:00', horarioId: 1 },
-    { inicio: '14:00', fin: '15:00', horarioId: 2 },
-    { inicio: '16:00', fin: '17:00', horarioId: 3 },
-  ];
-  const selected: FilterState = { fecha: null, tallerId: null, hora: null };
+  const selected: FilterState = {
+    fecha: null,
+    tallerId: null,
+    hora: null,
+    estado: null,
+    search: null,
+    dia_semana: null,
+  };
   const onChange = vi.fn();
 
-  it('renders three dropdowns with default "Todos" option', () => {
+  it('renders search input, estado toggle, and taller select', () => {
     render(
       <CascadeFilters
-        fechas={fechas}
+        fechas={[]}
         talleres={talleres}
-        horas={horas}
+        horas={[]}
         selected={selected}
         onChange={onChange}
       />
     );
 
-    expect(screen.getByLabelText('Filtrar por fecha')).toBeInTheDocument();
+    expect(screen.getByLabelText('Buscar alumnos')).toBeInTheDocument();
     expect(screen.getByLabelText('Filtrar por taller')).toBeInTheDocument();
-    expect(screen.getByLabelText('Filtrar por hora')).toBeInTheDocument();
+    expect(screen.getByText('Todos')).toBeInTheDocument();
+    expect(screen.getByText('Activos')).toBeInTheDocument();
+    expect(screen.getByText('Históricos')).toBeInTheDocument();
   });
 
   it('shows all talleres options', () => {
     render(
       <CascadeFilters
-        fechas={fechas}
+        fechas={[]}
         talleres={talleres}
-        horas={horas}
+        horas={[]}
         selected={selected}
         onChange={onChange}
       />
@@ -51,29 +54,50 @@ describe('CascadeFilters', () => {
     expect(tallerSelect).toContainHTML('Piano');
   });
 
-  it('calls onChange when fecha is selected', () => {
+  it('calls onChange with estado when estado toggle is clicked', () => {
     render(
       <CascadeFilters
-        fechas={fechas}
+        fechas={[]}
         talleres={talleres}
-        horas={horas}
+        horas={[]}
         selected={selected}
         onChange={onChange}
       />
     );
 
-    fireEvent.change(screen.getByLabelText('Filtrar por fecha'), {
-      target: { value: '2026-06-15' },
-    });
-    expect(onChange).toHaveBeenCalledWith('fecha', '2026-06-15');
+    fireEvent.click(screen.getByText('Activos'));
+    expect(onChange).toHaveBeenCalledWith('estado', 'activo');
+
+    fireEvent.click(screen.getByText('Históricos'));
+    expect(onChange).toHaveBeenCalledWith('estado', 'historico');
+
+    fireEvent.click(screen.getByText('Todos'));
+    expect(onChange).toHaveBeenCalledWith('estado', null);
+  });
+
+  it('calls onChange with search on confirm (Enter key)', () => {
+    render(
+      <CascadeFilters
+        fechas={[]}
+        talleres={talleres}
+        horas={[]}
+        selected={selected}
+        onChange={onChange}
+      />
+    );
+
+    const input = screen.getByLabelText('Buscar alumnos');
+    fireEvent.change(input, { target: { value: 'ana' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith('search', 'ana');
   });
 
   it('calls onChange when taller is selected', () => {
     render(
       <CascadeFilters
-        fechas={fechas}
+        fechas={[]}
         talleres={talleres}
-        horas={horas}
+        horas={[]}
         selected={selected}
         onChange={onChange}
       />
@@ -86,32 +110,39 @@ describe('CascadeFilters', () => {
   });
 
   it('shows active filter count badge when filters are active', () => {
-    const activeSelected: FilterState = { fecha: '2026-06-15', tallerId: 1, hora: null };
+    const activeSelected: FilterState = {
+      fecha: null,
+      tallerId: 1,
+      hora: null,
+      estado: 'activo',
+      search: null,
+      dia_semana: null,
+    };
 
     render(
       <CascadeFilters
-        fechas={fechas}
+        fechas={[]}
         talleres={talleres}
-        horas={horas}
+        horas={[]}
         selected={activeSelected}
         onChange={onChange}
       />
     );
 
-    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText(/2 filtro/)).toBeInTheDocument();
   });
 
   it('does not show count badge when no filters active', () => {
     render(
       <CascadeFilters
-        fechas={fechas}
+        fechas={[]}
         talleres={talleres}
-        horas={horas}
+        horas={[]}
         selected={selected}
         onChange={onChange}
       />
     );
 
-    expect(screen.queryByText('0')).not.toBeInTheDocument();
+    expect(screen.queryByText(/filtro/)).not.toBeInTheDocument();
   });
 });

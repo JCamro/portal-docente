@@ -2,6 +2,7 @@ import React, { memo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { docenteLogin } from '../api/portalDocente';
+import logoTaller from '../assets/logo-taller.png';
 
 const LoginPage = memo(() => {
   const navigate = useNavigate();
@@ -62,7 +63,7 @@ const LoginPage = memo(() => {
       <div className="login-container">
         <div className="login-card">
           <div className="login-logo">
-            <img src="/logo-taller.png" alt="Taller de Música Elguera" />
+            <img src={logoTaller} alt="Taller de Música Elguera" />
           </div>
 
           <div className="login-brand">
@@ -213,6 +214,8 @@ const LoginPage = memo(() => {
           height: 80px;
           border-radius: var(--radius-lg);
           padding: var(--space-2);
+          background: var(--color-gold-glow);
+          box-shadow: 0 4px 16px rgba(212, 175, 55, 0.25);
         }
 
         .login-logo img {

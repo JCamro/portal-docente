@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import logoTaller from '../../assets/logo-taller.png';
 
 interface DrawerItem {
   label: string;
@@ -33,6 +34,8 @@ const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose, items }) =
   const navigate = useNavigate();
   const location = useLocation();
   const profesor = useAuthStore((s) => s.profesor);
+  const cicloActivo = useAuthStore((s) => s.cicloActivo);
+  const setCicloActivo = useAuthStore((s) => s.setCicloActivo);
   const clearAuth = useAuthStore((s) => s.clearAuth);
 
   const handleItemClick = (item: DrawerItem) => {
@@ -53,10 +56,19 @@ const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose, items }) =
 
       <div className="drawer">
         <div className="drawer-header">
-          <img src="/logo-taller.png" alt="Taller de Música Elguera" className="drawer-logo" />
+          <img src={logoTaller} alt="Taller de Música Elguera" className="drawer-logo" />
           <div className="drawer-user">
             <span className="user-name">{profesor?.nombre} {profesor?.apellido}</span>
-            <span className="user-ciclo">Portal Docente</span>
+            <button
+              className="drawer-cycle-btn"
+              onClick={() => { setCicloActivo(null); onClose(); }}
+              title="Cambiar de ciclo"
+            >
+              <span className="user-ciclo">{cicloActivo?.nombre ?? 'Seleccionar ciclo'}</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
           </div>
           <button className="drawer-close" onClick={onClose} aria-label="Cerrar">
             <CloseIcon size={20} />
@@ -129,6 +141,7 @@ const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose, items }) =
           object-fit: contain;
           border-radius: var(--radius-md);
           background: var(--color-surface);
+          box-shadow: 0 2px 8px rgba(212, 175, 55, 0.2);
           flex-shrink: 0;
         }
 
@@ -155,6 +168,27 @@ const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose, items }) =
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+
+        .drawer-cycle-btn {
+          display: flex;
+          align-items: center;
+          gap: var(--space-1);
+          padding: var(--space-1) var(--space-2);
+          margin-top: 2px;
+          background: rgba(212, 175, 55, 0.08);
+          border: 1px solid rgba(212, 175, 55, 0.15);
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          font-family: var(--font-body);
+          color: var(--color-gold);
+          width: fit-content;
+          transition: background 150ms, border-color 150ms;
+        }
+
+        .drawer-cycle-btn:hover {
+          background: rgba(212, 175, 55, 0.15);
+          border-color: rgba(212, 175, 55, 0.3);
         }
 
         .drawer-close {

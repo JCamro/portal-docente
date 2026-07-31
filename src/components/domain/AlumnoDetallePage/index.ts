@@ -1,0 +1,9 @@
+export { default as AlumnoDetalleHeader } from './AlumnoDetalleHeader';
+export { default as AlumnoDetalleStats } from './AlumnoDetalleStats';
+export { default as AlumnoDetalleAsistencias } from './AlumnoDetalleAsistencias';
+export { default as AlumnoDetalleProgreso } from './AlumnoDetalleProgreso';
+export { default as AlumnoDetalleHorario } from './AlumnoDetalleHorario';
+export { default as AlumnoDetalleNotas } from './AlumnoDetalleNotas';
+export { default as AlumnoDetalleHistoricas } from './AlumnoDetalleHistoricas';
+export { default as AlumnoDetalleTallerSelector } from './AlumnoDetalleTallerSelector';
+export { default as TallerDetalle } from './TallerDetalle';
