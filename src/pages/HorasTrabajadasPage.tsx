@@ -9,7 +9,7 @@ import DatePicker from '../components/ui/DatePicker';
 import SummaryBar from '../components/domain/horarios/SummaryBar';
 import HoursWorkedSheet from '../components/domain/horarios/HoursWorkedSheet';
 import { useWindowWidth } from '../hooks/useWindowWidth';
-import { formatMonto, getTodayString, formatDate } from '../utils/formatters';
+import { getTodayString, formatDate } from '../utils/formatters';
 import { DIA_SEMANA_MAP, jsDayToBackendDay } from '../utils/constants';
 
 function parseLocalDate(dateStr: string): Date {
@@ -33,7 +33,8 @@ function formatDayHeaderPdf(dateStr: string): string {
 async function exportToPDF(
   data: HoraTrabajadaDetalleResponse,
   fechaDesde: string,
-  fechaHasta: string
+  fechaHasta: string,
+  profesorNombre: string,
 ): Promise<void> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
@@ -44,18 +45,60 @@ async function exportToPDF(
   const maxWidth = pageWidth - margin * 2;
   let y = margin;
 
+  // Header
   doc.setFontSize(18);
+  doc.setFont(FONT, 'bold');
   doc.text('Horas Trabajadas', margin, y);
-  y += 24;
+  y += 22;
 
-  doc.setFontSize(10);
+  doc.setFontSize(11);
+  doc.setFont(FONT, 'normal');
+  doc.text(`${profesorNombre}`, margin, y);
+  y += 14;
+
+  doc.setFontSize(9);
   doc.setTextColor(100, 100, 100);
-  doc.text(`${formatDate(fechaDesde)} - ${formatDate(fechaHasta)}`, margin, y);
-  y += 28;
+  doc.text(`${formatDate(fechaDesde)} — ${formatDate(fechaHasta)}`, margin, y);
+  y += 20;
   doc.setTextColor(0, 0, 0);
 
+  // Summary: only own hours (exclude sustituto)
+  let totalHorasPropias = 0;
+  let totalClasesPropias = 0;
+  let totalAlumnosPropias = 0;
   for (const day of data.days) {
-    if (y > 720) {
+    for (const w of day.talleres) {
+      for (const s of w.slots) {
+        if (!s.es_sustituto) {
+          totalClasesPropias += 1;
+          totalAlumnosPropias += s.num_alumnos;
+          // ponytail: approximate hour duration from start/end
+          const [h1, m1] = s.hora_inicio.split(':').map(Number);
+          const [h2, m2] = s.hora_fin.split(':').map(Number);
+          if (!isNaN(h1) && !isNaN(h2)) {
+            totalHorasPropias += (h2 * 60 + m2 - (h1 * 60 + m1)) / 60;
+          }
+        }
+      }
+    }
+  }
+
+  doc.setFontSize(10);
+  doc.setFont(FONT, 'bold');
+  doc.text('Resumen del período', margin, y);
+  y += 14;
+  doc.setFont(FONT, 'normal');
+  doc.setFontSize(9);
+  doc.text(`Total horas trabajadas: ${totalHorasPropias.toFixed(1)}h`, margin, y);
+  y += 12;
+  doc.text(`Clases dictadas: ${totalClasesPropias}`, margin, y);
+  y += 12;
+  doc.text(`Total alumnos: ${totalAlumnosPropias}`, margin, y);
+  y += 18;
+
+  // Days
+  for (const day of data.days) {
+    if (y > 700) {
       doc.addPage();
       y = margin;
     }
@@ -64,17 +107,30 @@ async function exportToPDF(
     doc.setFont(FONT, 'bold');
     doc.text(formatDayHeaderPdf(day.fecha), margin, y);
     y += 16;
-    doc.setFontSize(9);
     doc.setFont(FONT, 'normal');
 
     for (const workshop of day.talleres) {
+      // Workshop name as sub-header
+      doc.setFontSize(10);
+      doc.setFont(FONT, 'bold');
+      doc.text(workshop.taller_nombre, margin, y);
+      y += 14;
+      doc.setFontSize(9);
+      doc.setFont(FONT, 'normal');
+
       for (const slot of workshop.slots) {
         const studentsText =
           slot.alumnos.length > 0
             ? slot.alumnos.map((a) => a.nombre_completo).join(', ')
             : 'Sin alumnos registrados';
 
-        const row = `${workshop.taller_nombre} | ${slot.hora_inicio}-${slot.hora_fin} | ${studentsText} | ${formatMonto(parseFloat(slot.monto_profesor || '0'))}`;
+        const timeLabel = `${slot.hora_inicio}–${slot.hora_fin}`;
+        let row = `${timeLabel} | ${studentsText}`;
+
+        if (slot.es_sustituto) {
+          row += `\n  ↳ Dictada por ${slot.profesor_que_trabajo} — No contabilizada`;
+        }
+
         const wrapped = doc.splitTextToSize(row, maxWidth);
         doc.text(wrapped, margin, y);
         y += wrapped.length * 12 + 6;
@@ -92,6 +148,8 @@ async function exportToPDF(
           y = margin;
         }
       }
+
+      y += 4;
     }
 
     y += 12;
@@ -102,6 +160,8 @@ async function exportToPDF(
 
 const HorasTrabajadasPage = memo(() => {
   const cicloActivo = useAuthStore((s) => s.cicloActivo);
+  const profesor = useAuthStore((s) => s.profesor);
+  const profesorNombre = profesor ? `${profesor.nombre} ${profesor.apellido}` : '';
   const width = useWindowWidth();
   const isMobile = width <= 768;
 
@@ -155,7 +215,7 @@ const HorasTrabajadasPage = memo(() => {
     if (!data || data.days.length === 0) return;
     setPdfLoading(true);
     try {
-      await exportToPDF(data, fechaDesde, fechaHasta);
+      await exportToPDF(data, fechaDesde, fechaHasta, profesorNombre);
     } finally {
       setPdfLoading(false);
     }
