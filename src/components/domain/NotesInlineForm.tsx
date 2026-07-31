@@ -8,7 +8,7 @@ interface NotesInlineFormProps {
   initialContenido?: string;
   initialHorarioId?: number | null;
   saving?: boolean;
-  onSave: (data: { horario_id: number; fecha: string; contenido: string }) => void;
+  onSave: (data: { horario: number; fecha: string; contenido: string }) => void;
   onCancel?: () => void;
   isEditing?: boolean;
 }
@@ -58,7 +58,7 @@ const NotesInlineForm = memo<NotesInlineFormProps>(({
     if (!selectedHorarioId || !contenido.trim()) return;
 
     onSave({
-      horario_id: selectedHorarioId,
+      horario: selectedHorarioId,
       fecha: getTodayString(),
       contenido: contenido.trim(),
     });

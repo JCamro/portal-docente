@@ -1,28 +1,103 @@
-import React, { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../stores/authStore';
-import { getHorasTrabajadas } from '../api/portalDocente';
-import type { HoraTrabajada } from '../types';
+import { getHorasTrabajadasDetalle } from '../api/portalDocente';
+import type { HoraTrabajadaDetalleResponse } from '../types';
 import Loading from '../components/ui/Loading';
 import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
 import DatePicker from '../components/ui/DatePicker';
+import SummaryBar from '../components/domain/horarios/SummaryBar';
+import HoursWorkedSheet from '../components/domain/horarios/HoursWorkedSheet';
 import { useWindowWidth } from '../hooks/useWindowWidth';
-import { TIPO_HT_MAP, DIA_SEMANA_CORTO } from '../utils/constants';
-import { formatMonto, getTodayString } from '../utils/formatters';
+import { formatMonto, getTodayString, formatDate } from '../utils/formatters';
+import { DIA_SEMANA_MAP, jsDayToBackendDay } from '../utils/constants';
 
-/** Format date like "Lun 15/06" */
-function formatFechaConDia(dateStr: string): string {
+function parseLocalDate(dateStr: string): Date {
   const [year, month, day] = dateStr.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
-  // JS getDay(): 0=Dom → backend: 0=Lun
-  const jsDay = date.getDay();
-  const backendDay = jsDay === 0 ? 6 : jsDay - 1;
-  const dia = DIA_SEMANA_CORTO[backendDay] || '';
-  return `${dia} ${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}`;
+  return new Date(year, month - 1, day);
 }
 
-function formatTipo(tipo: string): string {
-  return TIPO_HT_MAP[tipo] || tipo;
+function formatDayHeaderPdf(dateStr: string): string {
+  const date = parseLocalDate(dateStr);
+  const backendDay = jsDayToBackendDay(date.getDay());
+  const weekday = DIA_SEMANA_MAP[backendDay];
+  const monthName = date.toLocaleDateString('es-PE', {
+    month: 'long',
+    timeZone: 'America/Lima',
+  });
+  const day = String(date.getDate()).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${weekday.toUpperCase()} ${day} DE ${monthName.toUpperCase()} ${year}`;
+}
+
+async function exportToPDF(
+  data: HoraTrabajadaDetalleResponse,
+  fechaDesde: string,
+  fechaHasta: string
+): Promise<void> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const FONT = 'helvetica';
+
+  const margin = 40;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const maxWidth = pageWidth - margin * 2;
+  let y = margin;
+
+  doc.setFontSize(18);
+  doc.text('Horas Trabajadas', margin, y);
+  y += 24;
+
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`${formatDate(fechaDesde)} - ${formatDate(fechaHasta)}`, margin, y);
+  y += 28;
+  doc.setTextColor(0, 0, 0);
+
+  for (const day of data.days) {
+    if (y > 720) {
+      doc.addPage();
+      y = margin;
+    }
+
+    doc.setFontSize(12);
+    doc.setFont(FONT, 'bold');
+    doc.text(formatDayHeaderPdf(day.fecha), margin, y);
+    y += 16;
+    doc.setFontSize(9);
+    doc.setFont(FONT, 'normal');
+
+    for (const workshop of day.talleres) {
+      for (const slot of workshop.slots) {
+        const studentsText =
+          slot.alumnos.length > 0
+            ? slot.alumnos.map((a) => a.nombre_completo).join(', ')
+            : 'Sin alumnos registrados';
+
+        const row = `${workshop.taller_nombre} | ${slot.hora_inicio}-${slot.hora_fin} | ${studentsText} | ${formatMonto(parseFloat(slot.monto_profesor || '0'))}`;
+        const wrapped = doc.splitTextToSize(row, maxWidth);
+        doc.text(wrapped, margin, y);
+        y += wrapped.length * 12 + 6;
+
+        if (slot.nota_clase) {
+          doc.setFont(FONT, 'italic');
+          const noteWrapped = doc.splitTextToSize(`Nota: ${slot.nota_clase}`, maxWidth - 20);
+          doc.text(noteWrapped, margin + 16, y);
+          y += noteWrapped.length * 12 + 6;
+          doc.setFont(FONT, 'normal');
+        }
+
+        if (y > 760) {
+          doc.addPage();
+          y = margin;
+        }
+      }
+    }
+
+    y += 12;
+  }
+
+  doc.save('horas-trabajadas.pdf');
 }
 
 const HorasTrabajadasPage = memo(() => {
@@ -32,13 +107,14 @@ const HorasTrabajadasPage = memo(() => {
 
   const todayStr = getTodayString();
 
-  const [records, setRecords] = useState<HoraTrabajada[]>([]);
+  const [data, setData] = useState<HoraTrabajadaDetalleResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [fechaDesde, setFechaDesde] = useState(todayStr);
   const [fechaHasta, setFechaHasta] = useState(todayStr);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!cicloActivo) {
       setLoading(false);
       return;
@@ -49,14 +125,14 @@ const HorasTrabajadasPage = memo(() => {
       const params: { fecha_desde?: string; fecha_hasta?: string } = {};
       if (fechaDesde) params.fecha_desde = fechaDesde;
       if (fechaHasta) params.fecha_hasta = fechaHasta;
-      const data = await getHorasTrabajadas(cicloActivo.id, params);
-      setRecords(data);
+      const response = await getHorasTrabajadasDetalle(cicloActivo.id, params);
+      setData(response);
     } catch {
       setError('Error al cargar horas trabajadas');
     } finally {
       setLoading(false);
     }
-  };
+  }, [cicloActivo, fechaDesde, fechaHasta]);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,226 +140,139 @@ const HorasTrabajadasPage = memo(() => {
       if (!cancelled) await fetchData();
     };
     run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cicloActivo?.id, fechaDesde, fechaHasta]);
+  }, [fetchData]);
+
+  const handleExportPDF = async () => {
+    if (!data || data.days.length === 0) return;
+    setPdfLoading(true);
+    try {
+      await exportToPDF(data, fechaDesde, fechaHasta);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   if (!cicloActivo) {
     return (
       <div style={{ padding: 'var(--space-lg)' }}>
-        <EmptyState message="Selecciona un ciclo" description="Elige un ciclo académico para ver tus horas trabajadas." />
+        <EmptyState
+          message="Selecciona un ciclo"
+          description="Elige un ciclo académico para ver tus horas trabajadas."
+        />
       </div>
     );
   }
 
-  if (loading && records.length === 0) return <Loading message="Cargando horas trabajadas..." />;
-  if (error && records.length === 0) return <ErrorState message={error} onRetry={fetchData} />;
+  if (loading && !data) {
+    return <Loading message="Cargando horas trabajadas..." />;
+  }
 
-  const totalHoras = records.reduce((sum, r) => sum + Number(r.horas_trabajadas), 0);
-  const totalMonto = records.reduce((sum, r) => sum + parseFloat(r.monto_profesor || '0'), 0);
+  if (error && !data) {
+    return <ErrorState message={error} onRetry={fetchData} />;
+  }
 
-  const columnHeaders = [
-    { key: 'fecha', label: 'Fecha' },
-    { key: 'taller', label: 'Taller' },
-    { key: 'tipo', label: 'Tipo' },
-    { key: 'horas', label: 'Horas' },
-    { key: 'alumnos', label: 'Alumnos' },
-    { key: 'monto', label: 'Monto' },
-  ];
+  const hasRecords = data && data.days.length > 0;
 
   return (
-    <div style={{
-      padding: isMobile ? 'var(--space-4)' : 'var(--space-6)',
-      maxWidth: 1200,
-      margin: '0 auto',
-    }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 'var(--space-6)',
-      }}>
-        <h1 style={{
+    <div
+      style={{
+        padding: isMobile ? 'var(--space-4)' : 'var(--space-6)',
+        maxWidth: 1200,
+        margin: '0 auto',
+      }}
+    >
+      <h1
+        style={{
           fontFamily: 'var(--font-heading)',
           fontSize: isMobile ? 'var(--text-xl)' : 'var(--text-2xl)',
           color: 'var(--color-gold)',
           margin: 0,
-        }}>
-          Horas Trabajadas
-        </h1>
-        {records.length > 0 && (
-          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-            {records.length} {records.length === 1 ? 'registro' : 'registros'}
-          </span>
-        )}
-      </div>
+          marginBottom: 'var(--space-6)',
+        }}
+      >
+        Horas Trabajadas
+      </h1>
 
       {/* Filters */}
-      <div style={{
-        display: 'flex',
-        gap: 'var(--space-4)',
-        marginBottom: 'var(--space-6)',
-        flexDirection: isMobile ? 'column' : 'row',
-        alignItems: isMobile ? 'stretch' : 'flex-end',
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: 'var(--space-4)',
+          marginBottom: 'var(--space-6)',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'flex-end',
+        }}
+      >
         <div style={{ flex: 1, minWidth: 150 }}>
           <DatePicker value={fechaDesde} onChange={setFechaDesde} label="Desde" />
         </div>
         <div style={{ flex: 1, minWidth: 150 }}>
           <DatePicker value={fechaHasta} onChange={setFechaHasta} label="Hasta" />
         </div>
+        <button
+          onClick={handleExportPDF}
+          disabled={pdfLoading || !hasRecords}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 'var(--space-2)',
+            padding: 'var(--space-3) var(--space-5)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-gold)',
+            background: 'transparent',
+            color: 'var(--color-gold)',
+            fontFamily: 'var(--font-body)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 600,
+            cursor: hasRecords ? 'pointer' : 'not-allowed',
+            minHeight: 44,
+            opacity: pdfLoading || !hasRecords ? 0.6 : 1,
+            transition: 'opacity 150ms ease',
+          }}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="12" y1="18" x2="12" y2="12" />
+            <line x1="9" y1="15" x2="15" y2="15" />
+          </svg>
+          {pdfLoading ? 'Generando PDF...' : 'Exportar PDF'}
+        </button>
       </div>
 
-      {/* Summary */}
-      {records.length > 0 && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
-          gap: 'var(--space-4)',
-          marginBottom: 'var(--space-6)',
-        }}>
-          <SummaryCard label="Total monto" value={formatMonto(totalMonto)} />
-          <SummaryCard label="Total horas" value={`${totalHoras.toFixed(1)}h`} />
-          <SummaryCard label="Clases" value={String(records.length)} />
-          <SummaryCard label="Promedio" value={formatMonto(records.length > 0 ? totalMonto / records.length : 0)} />
-        </div>
-      )}
-
-      {records.length === 0 ? (
+      {!hasRecords ? (
         <EmptyState
-          message="No hay registros"
-          description="No se encontraron horas trabajadas en el período seleccionado."
+          message="No tenés horas registradas en este período."
+          description="Contactá a secretaría para crear tu hora trabajada."
         />
-      ) : isMobile ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          {records.map((r) => (
-            <div key={r.id} style={{
-              background: 'var(--color-surface)',
-              borderRadius: 'var(--radius-xl)',
-              padding: 'var(--space-4)',
-              border: '1px solid var(--color-border)',
-              boxShadow: 'var(--shadow-sm)',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
-                  {formatFechaConDia(r.fecha)}
-                </span>
-                <span style={{
-                  padding: 'var(--space-1) var(--space-3)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: 'var(--text-xs)',
-                  fontWeight: 600,
-                  background: 'var(--color-gold-light)',
-                  color: 'var(--color-gold-dark)',
-                }}>
-                  {formatTipo(r.tipo)}
-                </span>
-              </div>
-              {r.taller_nombre && (
-                <div style={{ marginBottom: 'var(--space-2)' }}>
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-                    {r.taller_nombre}
-                  </span>
-                </div>
-              )}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
-                <InfoRow label="Horas" value={`${r.horas_trabajadas}h`} />
-                <InfoRow label="Alumnos" value={String(r.num_alumnos)} />
-                <InfoRow label="Monto" value={formatMonto(parseFloat(r.monto_profesor || '0'))} />
-              </div>
-            </div>
-          ))}
-        </div>
       ) : (
-        <div className="card" style={{
-          background: 'var(--color-surface)',
-          borderRadius: 'var(--radius-xl)',
-          boxShadow: 'var(--shadow-sm)',
-          border: '1px solid var(--color-border)',
-          overflowX: 'auto',
-        }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 650 }}>
-            <thead>
-              <tr style={{ background: 'var(--color-bg)' }}>
-                {columnHeaders.map(col => (
-                  <th key={col.key} style={thStyle}>{col.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((r) => (
-                <tr key={r.id} style={{ borderTop: '1px solid var(--color-border)' }}>
-                  <td style={tdStyle}>{formatFechaConDia(r.fecha)}</td>
-                  <td style={tdStyle}>{r.taller_nombre || '-'}</td>
-                  <td style={tdStyle}>{formatTipo(r.tipo)}</td>
-                  <td style={tdStyle}>{Number(r.horas_trabajadas).toFixed(1)}h</td>
-                  <td style={tdStyle}>{r.num_alumnos}</td>
-                  <td style={tdStyle}>{formatMonto(parseFloat(r.monto_profesor || '0'))}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-6)',
+          }}
+        >
+          <SummaryBar summary={data.summary} />
+          <HoursWorkedSheet data={data} cicloId={cicloActivo.id} />
         </div>
       )}
     </div>
   );
 });
-
-interface InfoRowProps {
-  label: string;
-  value: string;
-}
-
-const InfoRow = React.memo<InfoRowProps>(({ label, value }) => (
-  <div>
-    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', display: 'block' }}>{label}</span>
-    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>{value}</span>
-  </div>
-));
-
-interface SummaryCardProps {
-  label: string;
-  value: string;
-}
-
-const SummaryCard = React.memo<SummaryCardProps>(({ label, value }) => (
-  <div style={{
-    background: 'var(--color-surface)',
-    borderRadius: 'var(--radius-lg)',
-    padding: 'var(--space-4)',
-    border: '1px solid var(--color-border)',
-    boxShadow: 'var(--shadow-sm)',
-  }}>
-    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', margin: 0, marginBottom: 'var(--space-1)' }}>
-      {label}
-    </p>
-    <p style={{
-      fontSize: 'var(--text-lg)',
-      fontFamily: 'var(--font-heading)',
-      color: 'var(--color-gold)',
-      margin: 0,
-    }}>
-      {value}
-    </p>
-  </div>
-));
-
-const thStyle: React.CSSProperties = {
-  padding: 'var(--space-4) var(--space-5)',
-  textAlign: 'left',
-  fontSize: 'var(--text-xs)',
-  fontWeight: 600,
-  color: 'var(--color-text-muted)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: 'var(--space-4) var(--space-5)',
-  fontSize: 'var(--text-sm)',
-  color: 'var(--color-text)',
-  whiteSpace: 'nowrap',
-};
 
 export default HorasTrabajadasPage;

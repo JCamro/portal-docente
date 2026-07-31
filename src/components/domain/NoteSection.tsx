@@ -161,7 +161,7 @@ const NoteSection = memo<NoteSectionProps>(({
           const firstHorario = horariosList[0];
           if (!firstHorario) return;
           const created = await createNota(cicloId, {
-            horario_id: firstHorario.id,
+            horario: firstHorario.id,
             fecha: selectedDate,
             contenido: content,
           });

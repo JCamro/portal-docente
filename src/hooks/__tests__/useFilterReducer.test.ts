@@ -12,39 +12,39 @@ describe('filterReducer', () => {
   });
 
   it('SET_FECHA updates fecha and resets hora', () => {
-    const state: FilterState = { fecha: null, tallerId: 1, hora: '10:00-11:00' };
+    const state: FilterState = { ...initial, fecha: null, tallerId: 1, hora: '10:00-11:00' };
     const result = filterReducer(state, { type: 'SET_FECHA', payload: '2026-06-15' });
-    expect(result).toEqual({ fecha: '2026-06-15', tallerId: 1, hora: null });
+    expect(result).toEqual({ ...initial, fecha: '2026-06-15', tallerId: 1, hora: null });
   });
 
   it('SET_FECHA with null clears fecha and hora', () => {
-    const state: FilterState = { fecha: '2026-06-15', tallerId: 1, hora: '10:00-11:00' };
+    const state: FilterState = { ...initial, fecha: '2026-06-15', tallerId: 1, hora: '10:00-11:00' };
     const result = filterReducer(state, { type: 'SET_FECHA', payload: null });
-    expect(result).toEqual({ fecha: null, tallerId: 1, hora: null });
+    expect(result).toEqual({ ...initial, fecha: null, tallerId: 1, hora: null });
   });
 
   it('SET_TALLER updates tallerId and resets hora', () => {
-    const state: FilterState = { fecha: null, tallerId: null, hora: '10:00-11:00' };
+    const state: FilterState = { ...initial, fecha: null, tallerId: null, hora: '10:00-11:00' };
     const result = filterReducer(state, { type: 'SET_TALLER', payload: 2 });
-    expect(result).toEqual({ fecha: null, tallerId: 2, hora: null });
+    expect(result).toEqual({ ...initial, fecha: null, tallerId: 2, hora: null });
   });
 
   it('SET_TALLER with null clears tallerId and hora', () => {
-    const state: FilterState = { fecha: null, tallerId: 1, hora: '10:00-11:00' };
+    const state: FilterState = { ...initial, fecha: null, tallerId: 1, hora: '10:00-11:00' };
     const result = filterReducer(state, { type: 'SET_TALLER', payload: null });
-    expect(result).toEqual({ fecha: null, tallerId: null, hora: null });
+    expect(result).toEqual({ ...initial, fecha: null, tallerId: null, hora: null });
   });
 
   it('SET_HORA updates hora field', () => {
-    const state: FilterState = { fecha: null, tallerId: null, hora: null };
+    const state: FilterState = { ...initial, fecha: null, tallerId: null, hora: null };
     const result = filterReducer(state, { type: 'SET_HORA', payload: '10:00-11:00' });
-    expect(result).toEqual({ fecha: null, tallerId: null, hora: '10:00-11:00' });
+    expect(result).toEqual({ ...initial, fecha: null, tallerId: null, hora: '10:00-11:00' });
   });
 
   it('SET_HORA with null clears hora', () => {
-    const state: FilterState = { fecha: null, tallerId: 1, hora: '10:00-11:00' };
+    const state: FilterState = { ...initial, fecha: null, tallerId: 1, hora: '10:00-11:00' };
     const result = filterReducer(state, { type: 'SET_HORA', payload: null });
-    expect(result).toEqual({ fecha: null, tallerId: 1, hora: null });
+    expect(result).toEqual({ ...initial, fecha: null, tallerId: 1, hora: null });
   });
 
   it('RESET_ALL clears all fields', () => {

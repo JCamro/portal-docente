@@ -133,6 +133,49 @@ export interface HoraTrabajada {
   dia_semana?: number;
 }
 
+// ─── Horas Trabajadas Detalle (Sheet) ──────────────────────────────────────────
+
+export interface HoraTrabajadaDetalleAlumno {
+  nombre_completo: string;
+  estado: 'asistio' | 'falta' | 'falta_grave';
+}
+
+export interface HoraTrabajadaDetalleSlot {
+  horario_id: number;
+  hora_inicio: string;
+  hora_fin: string;
+  num_alumnos: number;
+  monto_profesor: string;
+  observacion: string;
+  nota_clase: string | null;
+  alumnos: HoraTrabajadaDetalleAlumno[];
+}
+
+export interface HoraTrabajadaDetalleWorkshop {
+  taller_nombre: string;
+  slots: HoraTrabajadaDetalleSlot[];
+}
+
+export interface HoraTrabajadaDetalleDay {
+  fecha: string;
+  talleres: HoraTrabajadaDetalleWorkshop[];
+}
+
+export interface HoraTrabajadaDetalleSummary {
+  total_horas: number;
+  total_clases: number;
+  total_alumnos: number;
+  promedio_alumnos_por_hora: number;
+  total_monto: number;
+  dias_con_clases: number;
+  promedio_horas_por_dia: number;
+}
+
+export interface HoraTrabajadaDetalleResponse {
+  summary: HoraTrabajadaDetalleSummary;
+  days: HoraTrabajadaDetalleDay[];
+}
+
 export interface DashboardData {
   total_horas: number;
   total_ingresos: string;

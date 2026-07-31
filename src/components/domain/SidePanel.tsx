@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useWindowWidth } from '../../hooks/useWindowWidth';
 import { getAlumnoDetalle, getNotasAlumno, createNotaAlumno, updateNotaAlumno } from '../../api/portalDocente';
 import { formatDate } from '../../utils/formatters';

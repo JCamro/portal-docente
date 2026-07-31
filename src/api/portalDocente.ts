@@ -17,6 +17,7 @@ import type {
   PaginatedResponse,
   AlumnoDetalle,
   HorariosSemanalesResponse,
+  HoraTrabajadaDetalleResponse,
 } from '../types';
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -200,6 +201,130 @@ export const getHorasTrabajadas = async (
   }
   const response = await api.get<HoraTrabajada[]>(url);
   return response.data;
+};
+
+interface RawSlot {
+  fecha?: string;
+  horario_id?: number;
+  hora_inicio: string;
+  hora_fin: string;
+  num_alumnos: number;
+  monto_profesor: string;
+  observacion?: string;
+  nota_clase?: string | null;
+  alumnos?: Array<{ nombre_completo: string; estado: string }>;
+  [key: string]: unknown;
+}
+
+interface RawGroupedResponse {
+  [fecha: string]: {
+    [tallerNombre: string]: RawSlot[];
+  };
+}
+
+function isDetalleResponse(value: unknown): value is HoraTrabajadaDetalleResponse {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'summary' in value &&
+    'days' in value &&
+    Array.isArray((value as HoraTrabajadaDetalleResponse).days)
+  );
+}
+
+function slotDuration(hours: { hora_inicio: string; hora_fin: string }): number {
+  const [h1, m1] = hours.hora_inicio.split(':').map(Number);
+  const [h2, m2] = hours.hora_fin.split(':').map(Number);
+  if (Number.isNaN(h1) || Number.isNaN(h2)) return 0;
+  return (h2 * 60 + m2 - (h1 * 60 + m1)) / 60;
+}
+
+function computeSummaryFromDays(days: HoraTrabajadaDetalleResponse['days']): HoraTrabajadaDetalleResponse['summary'] {
+  let totalHoras = 0;
+  let totalClases = 0;
+  let totalAlumnos = 0;
+  let totalMonto = 0;
+
+  for (const day of days) {
+    for (const workshop of day.talleres) {
+      for (const slot of workshop.slots) {
+        totalClases += 1;
+        totalAlumnos += slot.num_alumnos;
+        totalMonto += parseFloat(slot.monto_profesor || '0');
+        totalHoras += slotDuration(slot);
+      }
+    }
+  }
+
+  const diasConClases = days.length;
+  return {
+    total_horas: totalHoras,
+    total_clases: totalClases,
+    total_alumnos: totalAlumnos,
+    promedio_alumnos_por_hora: totalHoras > 0 ? totalAlumnos / totalHoras : 0,
+    total_monto: totalMonto,
+    dias_con_clases: diasConClases,
+    promedio_horas_por_dia: diasConClases > 0 ? totalHoras / diasConClases : 0,
+  };
+}
+
+function normalizeRawSlot(raw: RawSlot): HoraTrabajadaDetalleResponse['days'][number]['talleres'][number]['slots'][number] {
+  return {
+    horario_id: raw.horario_id ?? 0,
+    hora_inicio: raw.hora_inicio,
+    hora_fin: raw.hora_fin,
+    num_alumnos: raw.num_alumnos ?? 0,
+    monto_profesor: raw.monto_profesor ?? '0.00',
+    observacion: raw.observacion ?? '',
+    nota_clase: raw.nota_clase ?? null,
+    alumnos: (raw.alumnos ?? []).map((a) => ({
+      nombre_completo: a.nombre_completo,
+      estado: a.estado as 'asistio' | 'falta' | 'falta_grave',
+    })),
+  };
+}
+
+function normalizeGroupedResponse(raw: RawGroupedResponse): HoraTrabajadaDetalleResponse {
+  const days: HoraTrabajadaDetalleResponse['days'] = [];
+  const fechas = Object.keys(raw).sort().reverse();
+
+  for (const fecha of fechas) {
+    const talleresMap = raw[fecha];
+    const talleres: HoraTrabajadaDetalleResponse['days'][number]['talleres'] = [];
+    const tallerNombres = Object.keys(talleresMap).sort();
+
+    for (const tallerNombre of tallerNombres) {
+      const slots = talleresMap[tallerNombre].map(normalizeRawSlot);
+      talleres.push({ taller_nombre: tallerNombre, slots });
+    }
+
+    days.push({ fecha, talleres });
+  }
+
+  return { summary: computeSummaryFromDays(days), days };
+}
+
+function normalizeDetalleResponse(raw: unknown): HoraTrabajadaDetalleResponse {
+  if (isDetalleResponse(raw)) {
+    return raw;
+  }
+  return normalizeGroupedResponse(raw as RawGroupedResponse);
+}
+
+export const getHorasTrabajadasDetalle = async (
+  cicloId: number,
+  params?: { fecha_desde?: string; fecha_hasta?: string }
+): Promise<HoraTrabajadaDetalleResponse> => {
+  let url = `/portal-docente/ciclos/${cicloId}/horas-trabajadas/detalle/`;
+  if (params) {
+    const searchParams = new URLSearchParams();
+    if (params.fecha_desde) searchParams.set('fecha_desde', params.fecha_desde);
+    if (params.fecha_hasta) searchParams.set('fecha_hasta', params.fecha_hasta);
+    const qs = searchParams.toString();
+    if (qs) url += `?${qs}`;
+  }
+  const response = await api.get<unknown>(url);
+  return normalizeDetalleResponse(response.data);
 };
 
 // ─── Asistencias por Horario ─────────────────────────────────────────────────

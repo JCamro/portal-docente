@@ -1,4 +1,4 @@
-import { memo, useState, useMemo } from 'react';
+import { memo, useState } from 'react';
 import type { CascadeFiltersProps } from '../../types/alumnos';
 
 /**

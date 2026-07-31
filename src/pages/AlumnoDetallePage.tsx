@@ -46,7 +46,6 @@ const AlumnoDetallePage = memo(() => {
 
   const [detalle, setDetalle] = useState<AlumnoDetalle | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingTaller, setLoadingTaller] = useState(false);
   const [selectedTallerId, setSelectedTallerId] = useState<number | null>(null);
   const [talleresActivosCache, setTalleresActivosCache] = useState<TallerActivo[] | null>(null);
   const [notasAlumno, setNotasAlumno] = useState<NotaAlumno[]>([]);
@@ -87,7 +86,6 @@ const AlumnoDetallePage = memo(() => {
 
     let cancelled = false;
     const fetchFocused = async () => {
-      setLoadingTaller(true);
       try {
         const data = await getAlumnoDetalle(cicloActivo.id, id, selectedTallerId);
         if (cancelled) return;
@@ -95,8 +93,6 @@ const AlumnoDetallePage = memo(() => {
         setDetalle((prev) => prev ? { ...prev, estadisticas: data.estadisticas } : prev);
       } catch {
         // ignore — keep existing data
-      } finally {
-        if (!cancelled) setLoadingTaller(false);
       }
     };
     fetchFocused();

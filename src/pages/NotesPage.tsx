@@ -141,7 +141,7 @@ const NotesPage = memo(() => {
     return () => { cancelled = true; };
   }, [fetchData]);
 
-  const handleCreate = useCallback(async (data: { horario_id: number; fecha: string; contenido: string }) => {
+  const handleCreate = useCallback(async (data: { horario: number; fecha: string; contenido: string }) => {
     if (!cicloActivo) return;
     setSaving(true);
     try {
@@ -155,7 +155,7 @@ const NotesPage = memo(() => {
     }
   }, [cicloActivo]);
 
-  const handleUpdate = useCallback(async (data: { horario_id: number; fecha: string; contenido: string }) => {
+  const handleUpdate = useCallback(async (data: { horario: number; fecha: string; contenido: string }) => {
     if (!cicloActivo || !editingNota) return;
     setSaving(true);
     try {

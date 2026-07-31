@@ -2,7 +2,7 @@ import { memo } from 'react';
 import AlumnoDetalleProgreso from './AlumnoDetalleProgreso';
 import AlumnoDetalleStats from './AlumnoDetalleStats';
 import AlumnoDetalleAsistencias from './AlumnoDetalleAsistencias';
-import type { AlumnoDetalle, EstadisticasTaller } from '../../../types';
+import type { AlumnoDetalle } from '../../../types';
 
 interface Props {
   detalle: AlumnoDetalle;
