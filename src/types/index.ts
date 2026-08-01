@@ -401,9 +401,11 @@ export interface EgresoPortal {
   monto: number;
   descripcion: string;
   fecha: string;
+  dia_semana: string;
   metodo_pago: 'efectivo' | 'transferencia' | 'yape' | 'plin';
   estado: 'pendiente' | 'cancelado';
   beneficiario: string;
+  profesor_nombre: string;
   created_at: string;
 }
 

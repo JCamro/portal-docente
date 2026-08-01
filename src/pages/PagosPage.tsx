@@ -8,11 +8,43 @@ import EmptyState from '../components/ui/EmptyState';
 import { useWindowWidth } from '../hooks/useWindowWidth';
 import { formatMonto, formatDate } from '../utils/formatters';
 
-const METODO_PAGO_MAP: Record<string, { label: string; icon: string }> = {
-  efectivo: { label: 'Efectivo', icon: '💵' },
-  transferencia: { label: 'Transferencia', icon: '🏦' },
-  yape: { label: 'Yape', icon: '📱' },
-  plin: { label: 'Plin', icon: '📱' },
+const METODO_PAGO_MAP: Record<string, { label: string; icon: React.ReactNode }> = {
+  efectivo: {
+    label: 'Efectivo',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" y1="1" x2="12" y2="23" />
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      </svg>
+    ),
+  },
+  transferencia: {
+    label: 'Transferencia',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+        <line x1="1" y1="10" x2="23" y2="10" />
+      </svg>
+    ),
+  },
+  yape: {
+    label: 'Yape',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+        <line x1="12" y1="18" x2="12.01" y2="18" />
+      </svg>
+    ),
+  },
+  plin: {
+    label: 'Plin',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+        <line x1="12" y1="18" x2="12.01" y2="18" />
+      </svg>
+    ),
+  },
 };
 
 const ESTADO_MAP: Record<string, { label: string; color: string; bg: string }> = {
@@ -209,7 +241,7 @@ const PagosPage = memo(() => {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
                   <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
-                    {formatDate(pago.fecha)}
+                    {formatDate(pago.fecha)} — {pago.dia_semana}
                   </span>
                   <span style={{
                     padding: 'var(--space-1) var(--space-3)',
@@ -224,8 +256,15 @@ const PagosPage = memo(() => {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
                   <InfoRow label="Monto" value={formatMonto(pago.monto)} />
-                  <InfoRow label="Método" value={`${METODO_PAGO_MAP[pago.metodo_pago]?.icon || ''} ${METODO_PAGO_MAP[pago.metodo_pago]?.label || pago.metodo_pago}`} />
-                  <InfoRow label="Beneficiario" value={pago.beneficiario} />
+                  <InfoRow
+                    label="Método"
+                    value={
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                        {METODO_PAGO_MAP[pago.metodo_pago]?.icon}
+                        {METODO_PAGO_MAP[pago.metodo_pago]?.label || pago.metodo_pago}
+                      </span>
+                    }
+                  />
                   {pago.descripcion && (
                     <InfoRow label="Descripción" value={pago.descripcion} />
                   )}
@@ -246,9 +285,9 @@ const PagosPage = memo(() => {
             <thead>
               <tr style={{ background: 'var(--color-bg)' }}>
                 <th style={thStyle}>Fecha</th>
+                <th style={thStyle}>Día</th>
                 <th style={thStyle}>Monto</th>
                 <th style={thStyle}>Método</th>
-                <th style={thStyle}>Beneficiario</th>
                 <th style={thStyle}>Estado</th>
               </tr>
             </thead>
@@ -266,9 +305,14 @@ const PagosPage = memo(() => {
                     }}
                   >
                     <td style={tdStyle}>{formatDate(pago.fecha)}</td>
+                    <td style={tdStyle}>{pago.dia_semana}</td>
                     <td style={tdStyle}>{formatMonto(pago.monto)}</td>
-                    <td style={tdStyle}>{metodoInfo ? `${metodoInfo.icon} ${metodoInfo.label}` : pago.metodo_pago}</td>
-                    <td style={tdStyle}>{pago.beneficiario}</td>
+                    <td style={tdStyle}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                        {metodoInfo?.icon}
+                        {metodoInfo?.label || pago.metodo_pago}
+                      </span>
+                    </td>
                     <td style={tdStyle}>
                       <span style={{
                         padding: 'var(--space-1) var(--space-3)',
@@ -341,10 +385,20 @@ const PagosPage = memo(() => {
               </button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              <InfoRow label="Fecha" value={formatDate(selectedPago.fecha)} />
+              <InfoRow label="Fecha" value={`${formatDate(selectedPago.fecha)} — ${selectedPago.dia_semana}`} />
               <InfoRow label="Monto" value={formatMonto(selectedPago.monto)} />
-              <InfoRow label="Método de pago" value={`${METODO_PAGO_MAP[selectedPago.metodo_pago]?.icon || ''} ${METODO_PAGO_MAP[selectedPago.metodo_pago]?.label || selectedPago.metodo_pago}`} />
-              <InfoRow label="Beneficiario" value={selectedPago.beneficiario} />
+              <InfoRow
+                label="Método de pago"
+                value={
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                    {METODO_PAGO_MAP[selectedPago.metodo_pago]?.icon}
+                    {METODO_PAGO_MAP[selectedPago.metodo_pago]?.label || selectedPago.metodo_pago}
+                  </span>
+                }
+              />
+              {selectedPago.profesor_nombre && (
+                <InfoRow label="Profesor" value={selectedPago.profesor_nombre} />
+              )}
               {selectedPago.descripcion && (
                 <InfoRow label="Descripción" value={selectedPago.descripcion} />
               )}
