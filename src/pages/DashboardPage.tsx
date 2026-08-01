@@ -57,7 +57,7 @@ const DashboardPage = memo(() => {
   if (!data) return <EmptyState message="No hay datos disponibles" />;
 
   const horasValor = horasShowMes ? data.horas_mes : data.horas_dia;
-  const horasLabel = horasShowMes ? 'Este mes' : 'Hoy';
+  const horasLabel = horasShowMes ? 'Horas este mes' : 'Horas hoy';
   const profesorNombre = profesor ? profesor.nombre : 'Docente';
 
   let saludo = 'Hola de nuevo!';
