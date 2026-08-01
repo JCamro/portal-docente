@@ -60,10 +60,7 @@ const DashboardPage = memo(() => {
   const horasLabel = horasShowMes ? 'Este mes' : 'Hoy';
   const profesorNombre = profesor ? profesor.nombre : 'Docente';
 
-  const horaActual = new Date().getHours();
   let saludo = 'Hola de nuevo!';
-  if (horaActual >= 12 && horaActual < 18) saludo = 'Buenas tardes';
-  else if (horaActual >= 18) saludo = 'Buenas noches';
 
   const cardHover = (color: string) => ({
     onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => {
