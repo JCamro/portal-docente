@@ -9,12 +9,14 @@ import ScheduleGroup from './ScheduleGroup';
 interface DiaViewProps {
   allSchedules: HorarioSemanalConTaller[];
   cicloId: number;
+  initialFecha?: string; // YYYY-MM-DD
+  initialHorarioId?: number;
 }
 
 const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-const DiaView = memo(({ allSchedules, cicloId }: DiaViewProps) => {
-  const [selectedDate, setSelectedDate] = useState(() => dateToISO(new Date()));
+const DiaView = memo(({ allSchedules, cicloId, initialFecha, initialHorarioId }: DiaViewProps) => {
+  const [selectedDate, setSelectedDate] = useState(() => initialFecha ?? dateToISO(new Date()));
 
   const selectedDayBackend = useMemo(() => {
     const parts = selectedDate.split('-').map(Number);
@@ -234,7 +236,7 @@ const DiaView = memo(({ allSchedules, cicloId }: DiaViewProps) => {
           description="No hay horarios programados para la fecha seleccionada."
         />
       ) : (
-        <ScheduleGroup schedules={daySchedules} fecha={selectedDate} cicloId={cicloId} />
+        <ScheduleGroup schedules={daySchedules} fecha={selectedDate} cicloId={cicloId} initialExpandedId={initialHorarioId} />
       )}
     </div>
   );

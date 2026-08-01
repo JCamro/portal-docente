@@ -104,8 +104,8 @@ const AlumnoDetallePage = memo(() => {
     let cancelled = false;
     const fetchNotas = async () => {
       try {
-        const notas = await getNotasAlumno(cicloActivo.id, { alumno_id: id });
-        if (!cancelled) setNotasAlumno(notas);
+        const res = await getNotasAlumno(cicloActivo.id, { alumno_id: id });
+        if (!cancelled) setNotasAlumno(res.results);
       } catch { /* ignore */ }
     };
     fetchNotas();
@@ -134,7 +134,7 @@ const AlumnoDetallePage = memo(() => {
       });
     }
     const updated = await getNotasAlumno(cicloActivo.id, { alumno_id: id });
-    setNotasAlumno(updated);
+    setNotasAlumno(updated.results);
   };
 
   if (loading) return <Loading message="Cargando detalle..." />;

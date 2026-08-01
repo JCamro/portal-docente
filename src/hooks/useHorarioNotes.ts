@@ -14,6 +14,7 @@ interface UseHorarioNotesReturn {
   loading: boolean;
   saving: boolean;
   error: string | null;
+  deleted: boolean;
   save: (contenido: string) => Promise<boolean>;
   refresh: () => Promise<void>;
 }
@@ -28,6 +29,7 @@ export function useHorarioNotes({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleted, setDeleted] = useState(false);
   const abortRef = useRef(false);
 
   const fetchNota = useCallback(async () => {
@@ -35,11 +37,11 @@ export function useHorarioNotes({
     setLoading(true);
     setError(null);
     try {
-      const notas = await getNotas(cicloId, {
+      const res = await getNotas(cicloId, {
         horario_id: horarioId,
         fecha,
       });
-      setNota(notas.length > 0 ? notas[0] : null);
+      setNota(res.results.length > 0 ? res.results[0] : null);
     } catch {
       setError('Error al cargar la nota de clase');
     } finally {
@@ -61,12 +63,14 @@ export function useHorarioNotes({
       if (nota) {
         if (!trimmed) {
           await deleteNota(cicloId, nota.id);
-          if (!abortRef.current) setNota(null);
+          if (!abortRef.current) {
+            setNota(null);
+            setDeleted(true);
+          }
         } else if (trimmed !== nota.contenido) {
           const updated = await updateNota(cicloId, nota.id, { contenido: trimmed });
           if (!abortRef.current) setNota(updated);
         } else {
-          // No changes — skip API call
           if (!abortRef.current) setSaving(false);
           return true;
         }
@@ -92,6 +96,7 @@ export function useHorarioNotes({
     loading,
     saving,
     error,
+    deleted,
     save,
     refresh: fetchNota,
   };

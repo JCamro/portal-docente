@@ -19,7 +19,6 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!content.trim()) return;
     setSaving(true);
     try {
       await onSave(content.trim());
@@ -56,7 +55,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
           <button
             onClick={handleSave}
-            disabled={saving || !content.trim()}
+            disabled={saving}
             style={{
               padding: 'var(--space-2) var(--space-4)',
               borderRadius: 'var(--radius-md)',
@@ -67,10 +66,10 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               fontSize: 'var(--text-sm)',
               cursor: 'pointer',
               minHeight: 36,
-              opacity: saving || !content.trim() ? 0.6 : 1,
+              opacity: saving ? 0.6 : 1,
             }}
           >
-            {saving ? 'Guardando...' : 'Guardar'}
+            {saving ? 'Guardando...' : content.trim() ? 'Guardar' : 'Eliminar nota'}
           </button>
           {onCancel && (
             <button

@@ -1,6 +1,7 @@
-import { memo, useState } from 'react';
+import { memo, useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../../stores/authStore';
-import { useNotasDia } from '../../../hooks/useNotasDia';
+import { getNotasDia, createNotaDia, updateNotaDia, deleteNotaDia } from '../../../api/portalDocente';
+import type { NotaDia } from '../../../types';
 
 interface NotaDiaBannerProps {
   fecha: string;
@@ -8,21 +9,58 @@ interface NotaDiaBannerProps {
 
 const NotaDiaBanner = memo(({ fecha }: NotaDiaBannerProps) => {
   const cicloId = useAuthStore((s) => s.cicloActivo?.id);
-  const {
-    nota,
-    contenido,
-    setContenido,
-    loading,
-    saving,
-    save,
-  } = useNotasDia({ cicloId: cicloId || 0, fecha, enabled: !!cicloId });
+  const [nota, setNota] = useState<NotaDia | null>(null);
+  const [contenido, setContenido] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  const fetchNota = useCallback(async () => {
+    if (!cicloId) return;
+    setLoading(true);
+    try {
+      const res = await getNotasDia(cicloId, { fecha });
+      if (res.results.length > 0) {
+        setNota(res.results[0]);
+        setContenido(res.results[0].contenido);
+      } else {
+        setNota(null);
+        setContenido('');
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, [cicloId, fecha]);
+
+  useEffect(() => {
+    fetchNota();
+  }, [fetchNota]);
 
   if (!cicloId) return null;
 
   const handleSave = async () => {
-    await save();
-    setIsEditing(false);
+    const trimmed = contenido.trim();
+    if (!nota && !trimmed) return;
+    setSaving(true);
+    try {
+      if (nota && !trimmed) {
+        await deleteNotaDia(cicloId, nota.id);
+        setNota(null);
+      } else if (nota) {
+        const updated = await updateNotaDia(cicloId, nota.id, { contenido: trimmed });
+        setNota(updated);
+      } else {
+        const created = await createNotaDia(cicloId, { titulo: `Nota ${fecha}`, contenido: trimmed });
+        setNota(created);
+      }
+      setIsEditing(false);
+    } catch {
+      // silent
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!isEditing && !nota && !loading) {
@@ -159,7 +197,7 @@ const NotaDiaBanner = memo(({ fecha }: NotaDiaBannerProps) => {
         </button>
         <button
           onClick={handleSave}
-            disabled={saving || (!nota && !contenido.trim())}
+          disabled={saving || (!nota && !contenido.trim())}
           style={{
             padding: 'var(--space-1) var(--space-3)',
             borderRadius: 'var(--radius-md)',

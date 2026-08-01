@@ -1,4 +1,5 @@
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { getHorariosSemanales } from '../api/portalDocente';
 import type { TallerAgrupado, HorarioSemanalConTaller } from '../types';
@@ -15,6 +16,15 @@ type ViewMode = 'dia' | 'semana' | 'periodo';
 
 const HorariosPage = memo(() => {
   const cicloActivo = useAuthStore((s) => s.cicloActivo);
+  const [searchParams] = useSearchParams();
+  const initialFecha = useMemo(() => {
+    const f = searchParams.get('fecha');
+    return f != null ? f : undefined;
+  }, [searchParams]);
+  const initialHorarioId = useMemo(() => {
+    const h = searchParams.get('horario');
+    return h != null ? Number(h) : undefined;
+  }, [searchParams]);
 
   const [talleres, setTalleres] = useState<TallerAgrupado[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,8 +118,11 @@ const HorariosPage = memo(() => {
         <div style={{ marginTop: 'var(--space-4)' }}>
           {viewMode === 'dia' && (
             <DiaView
+              key={`${initialFecha ?? 'default'}-${initialHorarioId ?? ''}`}
               allSchedules={allSchedules}
               cicloId={cicloActivo.id}
+              initialFecha={initialFecha}
+              initialHorarioId={initialHorarioId}
             />
           )}
           {viewMode === 'semana' && (

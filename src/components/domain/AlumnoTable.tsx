@@ -91,7 +91,7 @@ const AlumnoTable = memo<AlumnoTableProps>(({
           }}
           aria-label="Página anterior"
         >
-          ← Anterior
+          Anterior
         </button>
         <span style={{
           padding: 'var(--space-1) var(--space-3)',
@@ -117,7 +117,7 @@ const AlumnoTable = memo<AlumnoTableProps>(({
           }}
           aria-label="Página siguiente"
         >
-          Siguiente →
+          Siguiente
         </button>
       </div>
     </div>

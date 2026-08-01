@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useWindowWidth } from '../../../hooks/useWindowWidth';
 import { useHorarioNotes } from '../../../hooks/useHorarioNotes';
 import { formatMonto } from '../../../utils/formatters';
@@ -160,16 +160,32 @@ interface SheetSlotProps {
 
 const SheetSlot: React.FC<SheetSlotProps> = React.memo(({ slot, fecha, isMobile, cicloId }) => {
   const [expanded, setExpanded] = useState(false);
-  const { nota, save, saving, error } = useHorarioNotes({
+  const noteRef = useRef<HTMLDivElement>(null);
+  const { nota, save, saving, error, deleted } = useHorarioNotes({
     cicloId,
     horarioId: slot.horario_id,
     fecha,
     enabled: expanded,
   });
 
-  const displayNote = (nota?.contenido ?? slot.nota_clase ?? '').trim();
-  const hasNote = displayNote.length > 0;
+  const displayNote = deleted ? '' : (nota?.contenido ?? slot.nota_clase ?? '').trim();
+  const hasNote = !deleted && displayNote.length > 0;
   const canEditNote = slot.horario_id > 0;
+
+  // Close editor when clicking outside
+  useEffect(() => {
+    if (!expanded) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (noteRef.current && !noteRef.current.contains(e.target as Node)) {
+        setExpanded(false);
+      }
+    };
+
+    // Use mousedown to fire before the click
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [expanded]);
 
   const handleSave = async (content: string) => {
     const ok = await save(content);
@@ -311,74 +327,10 @@ const SheetSlot: React.FC<SheetSlotProps> = React.memo(({ slot, fecha, isMobile,
       )}
 
       {canEditNote && (
-        <div style={{ marginTop: 'var(--space-2)' }}>
-          {hasNote ? (
-            <button
-              onClick={() => setExpanded(!expanded)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 'var(--space-2)',
-                fontSize: 'var(--text-xs)',
-                color: 'var(--color-text-secondary)',
-                background: 'transparent',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                fontFamily: 'var(--font-body)',
-              }}
-              aria-expanded={expanded}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-              {expanded ? 'Ocultar nota' : 'Ver / editar nota'}
-            </button>
-          ) : (
-            <button
-              onClick={() => setExpanded(true)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 'var(--space-2)',
-                fontSize: 'var(--text-xs)',
-                color: 'var(--color-text-secondary)',
-                background: 'transparent',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                fontFamily: 'var(--font-body)',
-              }}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-              Agregar nota
-            </button>
-          )}
-
-          {expanded && (
-            <div style={{ marginTop: 'var(--space-3)' }}>
+        <div ref={noteRef} style={{ marginTop: 'var(--space-2)' }}>
+          {expanded ? (
+            /* ── Edit mode: inline textarea ── */
+            <div>
               <NoteEditor
                 value={displayNote}
                 onSave={handleSave}
@@ -411,6 +363,74 @@ const SheetSlot: React.FC<SheetSlotProps> = React.memo(({ slot, fecha, isMobile,
                 </p>
               )}
             </div>
+          ) : hasNote ? (
+            /* ── View mode: preview with click to edit ── */
+            <button
+              onClick={() => setExpanded(true)}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--color-text-secondary)',
+                fontStyle: 'italic',
+                padding: 'var(--space-2) var(--space-3)',
+                background: 'var(--color-bg)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--color-border)',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-body)',
+                lineHeight: 1.4,
+                transition: 'border-color 150ms ease, background 150ms ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-gold)';
+                e.currentTarget.style.background = 'var(--color-gold-glow)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+                e.currentTarget.style.background = 'var(--color-bg)';
+              }}
+            >
+              <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                {displayNote}
+              </span>
+              <span style={{ display: 'block', marginTop: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontStyle: 'normal' }}>
+                Click para editar
+              </span>
+            </button>
+          ) : (
+            /* ── No note: add button ── */
+            <button
+              onClick={() => setExpanded(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--color-text-secondary)',
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              Agregar nota
+            </button>
           )}
         </div>
       )}

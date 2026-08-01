@@ -82,9 +82,9 @@ const NoteSection = memo<NoteSectionProps>(({
 
         switch (expandedLevel) {
           case 'dia': {
-            const data = await getNotasDia(cicloId, { fecha: selectedDate });
+            const res = await getNotasDia(cicloId, { fecha: selectedDate });
             if (!cancelled) {
-              items = data.map((n: NotaDia) => ({
+              items = res.results.map((n: NotaDia) => ({
                 id: n.id,
                 level: 'dia' as NoteLevel,
                 content: n.contenido,
@@ -94,9 +94,9 @@ const NoteSection = memo<NoteSectionProps>(({
             break;
           }
           case 'clase': {
-            const data = await getNotas(cicloId, { fecha: selectedDate });
+            const res = await getNotas(cicloId, { fecha: selectedDate });
             if (!cancelled) {
-              items = data.map((n: NotaClase) => ({
+              items = res.results.map((n: NotaClase) => ({
                 id: n.id,
                 level: 'clase' as NoteLevel,
                 content: n.contenido,
@@ -107,9 +107,9 @@ const NoteSection = memo<NoteSectionProps>(({
             break;
           }
           case 'alumno': {
-            const data = await getNotasAlumno(cicloId, { alumno_id: alumnoId });
+            const res = await getNotasAlumno(cicloId, { alumno_id: alumnoId });
             if (!cancelled) {
-              items = data.map((n: NotaAlumno) => ({
+              items = res.results.map((n: NotaAlumno) => ({
                 id: n.id,
                 level: 'alumno' as NoteLevel,
                 content: n.contenido,
@@ -153,7 +153,7 @@ const NoteSection = memo<NoteSectionProps>(({
 
       switch (level) {
         case 'dia': {
-          const created = await createNotaDia(cicloId, { fecha: selectedDate, contenido: content });
+          const created = await createNotaDia(cicloId, { titulo: `Nota del ${selectedDate}`, contenido: content });
           newItem = { id: created.id, level: 'dia', content: created.contenido, date: selectedDate };
           break;
         }

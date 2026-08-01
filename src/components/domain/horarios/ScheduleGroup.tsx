@@ -1,4 +1,4 @@
-import { memo, useState, useMemo } from 'react';
+import { memo, useState, useMemo, useRef, useEffect } from 'react';
 import type { HorarioSemanalConTaller } from '../../../types';
 import ScheduleRow from './ScheduleRow';
 
@@ -6,6 +6,7 @@ interface ScheduleGroupProps {
   schedules: HorarioSemanalConTaller[];
   fecha: string;
   cicloId: number;
+  initialExpandedId?: number;
 }
 
 const tallerCardStyle: React.CSSProperties = {
@@ -15,10 +16,18 @@ const tallerCardStyle: React.CSSProperties = {
   overflow: 'hidden',
 };
 
-const ScheduleGroup = memo(({ schedules, fecha, cicloId }: ScheduleGroupProps) => {
+const ScheduleGroup = memo(({ schedules, fecha, cicloId, initialExpandedId }: ScheduleGroupProps) => {
   const [expandedCardId, setExpandedCardId] = useState<number | null>(
-    schedules[0]?.id ?? null
+    initialExpandedId ?? schedules[0]?.id ?? null
   );
+  const expandedRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to expanded card on initial mount (redirect from notes)
+  useEffect(() => {
+    if (initialExpandedId != null && expandedRef.current) {
+      expandedRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [initialExpandedId]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, HorarioSemanalConTaller[]>();
@@ -73,15 +82,19 @@ const ScheduleGroup = memo(({ schedules, fecha, cicloId }: ScheduleGroupProps) =
           </div>
 
           {tallerSchedules.map((schedule, idx) => (
-            <ScheduleRow
+            <div
               key={schedule.id}
-              schedule={schedule}
-              fecha={fecha}
-              cicloId={cicloId}
-              isExpanded={expandedCardId === schedule.id}
-              onToggle={() => handleToggle(schedule.id)}
-              isLast={idx === tallerSchedules.length - 1}
-            />
+              ref={expandedCardId === schedule.id ? expandedRef : undefined}
+            >
+              <ScheduleRow
+                schedule={schedule}
+                fecha={fecha}
+                cicloId={cicloId}
+                isExpanded={expandedCardId === schedule.id}
+                onToggle={() => handleToggle(schedule.id)}
+                isLast={idx === tallerSchedules.length - 1}
+              />
+            </div>
           ))}
         </div>
       ))}

@@ -30,6 +30,7 @@ describe('DashboardPage', () => {
     mockGetDashboard.mockResolvedValueOnce({
       clases_hoy: 3,
       total_alumnos: 15,
+      total_horarios: 8,
       horas_dia: 4.5,
       horas_mes: 24,
     });

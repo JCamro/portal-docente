@@ -80,9 +80,9 @@ const SidePanel = ({
 
     const fetchNotas = async () => {
       try {
-        const notas = await getNotasAlumno(cicloId, { alumno_id: alumnoId });
+        const res = await getNotasAlumno(cicloId, { alumno_id: alumnoId });
         if (cancelled) return;
-        setNotasAlumno(notas);
+        setNotasAlumno(res.results);
       } catch {
         // ignore
       }
@@ -122,7 +122,7 @@ const SidePanel = ({
       });
     }
     const updated = await getNotasAlumno(cicloId, { alumno_id: alumnoId });
-    setNotasAlumno(updated);
+    setNotasAlumno(updated.results);
   };
 
   const panelWidth = isMobile ? '100vw' : 420;

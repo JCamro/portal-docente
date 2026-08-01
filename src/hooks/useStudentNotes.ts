@@ -34,12 +34,12 @@ export function useStudentNotes({
     setLoading(true);
     setError(null);
     try {
-      const list = await getNotasAlumno(cicloId, {
+      const res = await getNotasAlumno(cicloId, {
         horario_id: horarioId,
         fecha,
       });
       const map: Record<number, NotaAlumno> = {};
-      for (const na of list) {
+      for (const na of res.results) {
         map[na.alumno] = na;
       }
       setNotas(map);
