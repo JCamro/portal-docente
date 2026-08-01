@@ -1,56 +1,62 @@
-import React, { memo, useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../stores/authStore';
-import { getPagosLegacy } from '../api/portalDocente';
-import type { PagoProfesorPortal, PagoProfesorDetallePortal } from '../types';
+import { getPagos } from '../api/portalDocente';
+import type { EgresoPortal, PagosStats } from '../types';
 import Loading from '../components/ui/Loading';
 import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
 import { useWindowWidth } from '../hooks/useWindowWidth';
-import { ESTADO_PAGO_MAP } from '../utils/constants';
 import { formatMonto, formatDate } from '../utils/formatters';
 
-type EstadoFilter = '' | 'calculado' | 'pagado' | 'anulado';
+const METODO_PAGO_MAP: Record<string, { label: string; icon: string }> = {
+  efectivo: { label: 'Efectivo', icon: '💵' },
+  transferencia: { label: 'Transferencia', icon: '🏦' },
+  yape: { label: 'Yape', icon: '📱' },
+  plin: { label: 'Plin', icon: '📱' },
+};
+
+const ESTADO_MAP: Record<string, { label: string; color: string; bg: string }> = {
+  pendiente: { label: 'Pendiente', color: '#d97706', bg: '#fef3c7' },
+  cancelado: { label: 'Cancelado', color: '#16a34a', bg: '#dcfce7' },
+};
 
 const PagosPage = memo(() => {
   const cicloActivo = useAuthStore((s) => s.cicloActivo);
   const width = useWindowWidth();
   const isMobile = width <= 768;
 
-  const [records, setRecords] = useState<PagoProfesorPortal[]>([]);
+  const [pagos, setPagos] = useState<EgresoPortal[]>([]);
+  const [stats, setStats] = useState<PagosStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filtroEstado, setFiltroEstado] = useState<EstadoFilter>('');
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
+  const [selectedPago, setSelectedPago] = useState<EgresoPortal | null>(null);
 
   const fetchData = useCallback(async () => {
-    if (!cicloActivo) {
-      setLoading(false);
-      return;
-    }
+    if (!cicloActivo) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     try {
-      const data = await getPagosLegacy(cicloActivo.id, filtroEstado || undefined);
-      setRecords(data);
+      const params: { fecha_desde?: string; fecha_hasta?: string } = {};
+      if (fechaDesde) params.fecha_desde = fechaDesde;
+      if (fechaHasta) params.fecha_hasta = fechaHasta;
+      const data = await getPagos(cicloActivo.id, Object.keys(params).length ? params : undefined);
+      setPagos(data.pagos);
+      setStats(data.stats);
     } catch {
       setError('Error al cargar pagos');
     } finally {
       setLoading(false);
     }
-  }, [cicloActivo, filtroEstado]);
+  }, [cicloActivo, fechaDesde, fechaHasta]);
 
   useEffect(() => {
     let cancelled = false;
-    const run = async () => {
-      if (!cancelled) await fetchData();
-    };
+    const run = async () => { if (!cancelled) await fetchData(); };
     run();
     return () => { cancelled = true; };
   }, [fetchData]);
-
-  const toggleExpand = (id: number) => {
-    setExpandedId(expandedId === id ? null : id);
-  };
 
   if (!cicloActivo) {
     return (
@@ -63,23 +69,8 @@ const PagosPage = memo(() => {
     );
   }
 
-  if (loading && records.length === 0) return <Loading message="Cargando pagos..." />;
-  if (error && records.length === 0) return <ErrorState message={error} onRetry={fetchData} />;
-
-  const totalMontoFinal = records.reduce((sum, r) => sum + r.monto_final, 0);
-  const countByEstado = {
-    calculado: records.filter(r => r.estado === 'calculado').length,
-    pagado: records.filter(r => r.estado === 'pagado').length,
-    anulado: records.filter(r => r.estado === 'anulado').length,
-  };
-
-  const columnHeaders = [
-    { key: 'periodo', label: 'Período' },
-    { key: 'horas', label: 'Horas' },
-    { key: 'monto', label: 'Monto Final' },
-    { key: 'clases', label: 'Detalles' },
-    { key: 'estado', label: 'Estado' },
-  ];
+  if (loading && pagos.length === 0) return <Loading message="Cargando pagos..." />;
+  if (error && pagos.length === 0) return <ErrorState message={error} onRetry={fetchData} />;
 
   return (
     <div style={{
@@ -87,6 +78,7 @@ const PagosPage = memo(() => {
       maxWidth: 1200,
       margin: '0 auto',
     }}>
+      {/* Header */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -101,9 +93,9 @@ const PagosPage = memo(() => {
         }}>
           Mis Pagos
         </h1>
-        {records.length > 0 && (
+        {stats && (
           <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-            {records.length} {records.length === 1 ? 'pago' : 'pagos'}
+            {stats.cantidad_pagos} {stats.cantidad_pagos === 1 ? 'pago' : 'pagos'}
           </span>
         )}
       </div>
@@ -125,11 +117,12 @@ const PagosPage = memo(() => {
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
           }}>
-            Estado
+            Desde
           </label>
-          <select
-            value={filtroEstado}
-            onChange={(e) => setFiltroEstado(e.target.value as EstadoFilter)}
+          <input
+            type="date"
+            value={fechaDesde}
+            onChange={(e) => setFechaDesde(e.target.value)}
             style={{
               padding: 'var(--space-3) var(--space-4)',
               fontSize: 'var(--text-sm)',
@@ -140,34 +133,56 @@ const PagosPage = memo(() => {
               fontFamily: 'var(--font-body)',
               minHeight: 44,
             }}
-          >
-            <option value="">Todos</option>
-            <option value="calculado">Calculado</option>
-            <option value="pagado">Pagado</option>
-            <option value="anulado">Anulado</option>
-          </select>
+          />
+        </div>
+        <div style={{ flex: 1, minWidth: 150, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <label style={{
+            fontSize: 'var(--text-xs)',
+            fontWeight: 600,
+            color: 'var(--color-text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+          }}>
+            Hasta
+          </label>
+          <input
+            type="date"
+            value={fechaHasta}
+            onChange={(e) => setFechaHasta(e.target.value)}
+            style={{
+              padding: 'var(--space-3) var(--space-4)',
+              fontSize: 'var(--text-sm)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--color-surface)',
+              color: 'var(--color-text)',
+              fontFamily: 'var(--font-body)',
+              minHeight: 44,
+            }}
+          />
         </div>
       </div>
 
-      {/* Summary */}
-      {records.length > 0 && (
+      {/* Stats */}
+      {stats && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
           gap: 'var(--space-4)',
           marginBottom: 'var(--space-6)',
         }}>
-          <SummaryCard label="Total pagos" value={formatMonto(totalMontoFinal)} />
-          <SummaryCard label="Calculados" value={String(countByEstado.calculado)} />
-          <SummaryCard label="Pagados" value={String(countByEstado.pagado)} />
-          <SummaryCard label="Anulados" value={String(countByEstado.anulado)} />
+          <SummaryCard label="Total pagado" value={formatMonto(stats.total_pagado)} />
+          <SummaryCard label="Pagos" value={String(stats.cantidad_pagos)} />
+          <SummaryCard label="Promedio" value={formatMonto(stats.promedio_pago)} />
+          <SummaryCard label="Último pago" value={stats.ultimo_pago ? formatDate(stats.ultimo_pago) : '-'} />
         </div>
       )}
 
-      {records.length === 0 ? (
+      {/* Pago list */}
+      {pagos.length === 0 ? (
         <EmptyState
           message="No hay pagos registrados"
-          description="Aún no se han procesado pagos para este ciclo."
+          description="Aún no se han registrado pagos para este ciclo."
           icon={
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="1" x2="12" y2="23" />
@@ -177,29 +192,24 @@ const PagosPage = memo(() => {
         />
       ) : isMobile ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          {records.map((r) => {
-            const estadoInfo = ESTADO_PAGO_MAP[r.estado] || ESTADO_PAGO_MAP.calculado;
-            const isExpanded = expandedId === r.id;
+          {pagos.map((pago) => {
+            const estadoInfo = ESTADO_MAP[pago.estado] || ESTADO_MAP.pendiente;
             return (
-              <div key={r.id} style={{
-                background: 'var(--color-surface)',
-                borderRadius: 'var(--radius-xl)',
-                padding: 'var(--space-4)',
-                border: '1px solid var(--color-border)',
-                boxShadow: 'var(--shadow-sm)',
-              }}>
-                <div
-                  onClick={() => r.detalles.length > 0 && toggleExpand(r.id)}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: 'var(--space-3)',
-                    cursor: r.detalles.length > 0 ? 'pointer' : 'default',
-                  }}
-                >
+              <div
+                key={pago.id}
+                onClick={() => setSelectedPago(pago)}
+                style={{
+                  background: 'var(--color-surface)',
+                  borderRadius: 'var(--radius-xl)',
+                  padding: 'var(--space-4)',
+                  border: '1px solid var(--color-border)',
+                  boxShadow: 'var(--shadow-sm)',
+                  cursor: 'pointer',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
                   <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
-                    {formatDate(r.fecha_inicio)} — {formatDate(r.fecha_fin)}
+                    {formatDate(pago.fecha)}
                   </span>
                   <span style={{
                     padding: 'var(--space-1) var(--space-3)',
@@ -213,61 +223,19 @@ const PagosPage = memo(() => {
                   </span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
-                  <InfoRow label="Período" value={`${formatDate(r.fecha_inicio)} — ${formatDate(r.fecha_fin)}`} />
-                  <InfoRow label="Horas calculadas" value={`${r.horas_calculadas}h`} />
-                  <InfoRow label="Monto final" value={formatMonto(r.monto_final)} />
-                  <InfoRow label="Detalles" value={String(r.detalles.length)} />
-                  {r.estado === 'pagado' && r.fecha_pago && (
-                    <InfoRow label="Fecha de pago" value={formatDate(r.fecha_pago)} />
+                  <InfoRow label="Monto" value={formatMonto(pago.monto)} />
+                  <InfoRow label="Método" value={`${METODO_PAGO_MAP[pago.metodo_pago]?.icon || ''} ${METODO_PAGO_MAP[pago.metodo_pago]?.label || pago.metodo_pago}`} />
+                  <InfoRow label="Beneficiario" value={pago.beneficiario} />
+                  {pago.descripcion && (
+                    <InfoRow label="Descripción" value={pago.descripcion} />
                   )}
                 </div>
-
-                {/* Expandable Detalles */}
-                {isExpanded && r.detalles.length > 0 && (
-                  <div style={{
-                    marginTop: 'var(--space-4)',
-                    paddingTop: 'var(--space-4)',
-                    borderTop: '1px solid var(--color-border)',
-                  }}>
-                    <p style={{
-                      fontSize: 'var(--text-xs)',
-                      fontWeight: 600,
-                      color: 'var(--color-text-muted)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      margin: 0,
-                      marginBottom: 'var(--space-3)',
-                    }}>
-                      Detalle por clase
-                    </p>
-                    {r.detalles.map((d) => (
-                      <DetalleCard key={d.id} detalle={d} />
-                    ))}
-                  </div>
-                )}
-
-                {r.detalles.length > 0 && (
-                  <div
-                    onClick={() => toggleExpand(r.id)}
-                    style={{
-                      marginTop: 'var(--space-3)',
-                      textAlign: 'center',
-                      fontSize: 'var(--text-xs)',
-                      color: 'var(--color-gold)',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      padding: 'var(--space-2)',
-                    }}
-                  >
-                    {isExpanded ? 'Ocultar detalle' : `Ver detalle (${r.detalles.length} clases)`}
-                  </div>
-                )}
               </div>
             );
           })}
         </div>
       ) : (
-        <div className="card" style={{
+        <div style={{
           background: 'var(--color-surface)',
           borderRadius: 'var(--radius-xl)',
           boxShadow: 'var(--shadow-sm)',
@@ -277,124 +245,124 @@ const PagosPage = memo(() => {
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
             <thead>
               <tr style={{ background: 'var(--color-bg)' }}>
-                {columnHeaders.map(col => (
-                  <th key={col.key} style={thStyle}>{col.label}</th>
-                ))}
+                <th style={thStyle}>Fecha</th>
+                <th style={thStyle}>Monto</th>
+                <th style={thStyle}>Método</th>
+                <th style={thStyle}>Beneficiario</th>
+                <th style={thStyle}>Estado</th>
               </tr>
             </thead>
             <tbody>
-              {records.map((r) => {
-                const estadoInfo = ESTADO_PAGO_MAP[r.estado] || ESTADO_PAGO_MAP.calculado;
-                const isExpanded = expandedId === r.id;
+              {pagos.map((pago) => {
+                const estadoInfo = ESTADO_MAP[pago.estado] || ESTADO_MAP.pendiente;
+                const metodoInfo = METODO_PAGO_MAP[pago.metodo_pago];
                 return (
-                  <React.Fragment key={r.id}>
-                    <tr
-                      onClick={() => r.detalles.length > 0 && toggleExpand(r.id)}
-                      style={{
-                        borderTop: '1px solid var(--color-border)',
-                        cursor: r.detalles.length > 0 ? 'pointer' : 'default',
-                      }}
-                    >
-                      <td style={tdStyle}>
-                        {formatDate(r.fecha_inicio)} — {formatDate(r.fecha_fin)}
-                      </td>
-                      <td style={tdStyle}>{r.horas_calculadas}h</td>
-                      <td style={tdStyle}>{formatMonto(r.monto_final)}</td>
-                      <td style={tdStyle}>
-                        {r.detalles.length > 0 ? (
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 'var(--space-1)',
-                            color: 'var(--color-gold)',
-                            fontWeight: 600,
-                            fontSize: 'var(--text-xs)',
-                          }}>
-                            {r.detalles.length} clases
-                            <svg
-                              width="14" height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              style={{
-                                transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                                transition: 'transform 0.15s',
-                              }}
-                            >
-                              <polyline points="6 9 12 15 18 9" />
-                            </svg>
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-xs)' }}>
-                            Sin detalle
-                          </span>
-                        )}
-                      </td>
-                      <td style={tdStyle}>
-                        <span style={{
-                          padding: 'var(--space-1) var(--space-3)',
-                          borderRadius: 'var(--radius-md)',
-                          fontSize: 'var(--text-xs)',
-                          fontWeight: 600,
-                          background: estadoInfo.bg,
-                          color: estadoInfo.color,
-                        }}>
-                          {estadoInfo.label}
-                        </span>
-                      </td>
-                    </tr>
-                    {isExpanded && r.detalles.length > 0 && (
-                      <tr>
-                        <td colSpan={5} style={{ padding: 0, background: 'var(--color-bg)' }}>
-                          <div style={{
-                            padding: 'var(--space-4) var(--space-6)',
-                            borderBottom: '1px solid var(--color-border)',
-                          }}>
-                            <p style={{
-                              fontSize: 'var(--text-xs)',
-                              fontWeight: 600,
-                              color: 'var(--color-text-muted)',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.05em',
-                              margin: 0,
-                              marginBottom: 'var(--space-3)',
-                            }}>
-                              Detalle por clase
-                            </p>
-                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                              <thead>
-                                <tr>
-                                  <th style={innerThStyle}>Fecha</th>
-                                  <th style={innerThStyle}>Taller</th>
-                                  <th style={innerThStyle}>Alumnos</th>
-                                  <th style={innerThStyle}>Monto Prof.</th>
-                                  <th style={innerThStyle}>Ganancia Taller</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {r.detalles.map((d) => (
-                                  <tr key={d.id} style={{ borderTop: '1px solid var(--color-border)' }}>
-                                    <td style={innerTdStyle}>{formatDate(d.fecha)}</td>
-                                    <td style={innerTdStyle}>{d.taller_nombre || '-'}</td>
-                                    <td style={innerTdStyle}>{d.num_alumnos}</td>
-                                    <td style={innerTdStyle}>{formatMonto(d.monto_profesor)}</td>
-                                    <td style={innerTdStyle}>{formatMonto(d.ganancia_taller)}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
+                  <tr
+                    key={pago.id}
+                    onClick={() => setSelectedPago(pago)}
+                    style={{
+                      borderTop: '1px solid var(--color-border)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <td style={tdStyle}>{formatDate(pago.fecha)}</td>
+                    <td style={tdStyle}>{formatMonto(pago.monto)}</td>
+                    <td style={tdStyle}>{metodoInfo ? `${metodoInfo.icon} ${metodoInfo.label}` : pago.metodo_pago}</td>
+                    <td style={tdStyle}>{pago.beneficiario}</td>
+                    <td style={tdStyle}>
+                      <span style={{
+                        padding: 'var(--space-1) var(--space-3)',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: 'var(--text-xs)',
+                        fontWeight: 600,
+                        background: estadoInfo.bg,
+                        color: estadoInfo.color,
+                      }}>
+                        {estadoInfo.label}
+                      </span>
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Detail modal */}
+      {selectedPago && (
+        <div
+          onClick={() => setSelectedPago(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: 'var(--space-4)',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--color-surface)',
+              borderRadius: 'var(--radius-xl)',
+              padding: 'var(--space-6)',
+              maxWidth: 400,
+              width: '100%',
+              boxShadow: 'var(--shadow-lg)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+              <h2 style={{
+                fontFamily: 'var(--font-heading)',
+                fontSize: 'var(--text-lg)',
+                color: 'var(--color-gold)',
+                margin: 0,
+              }}>
+                Detalle del Pago
+              </h2>
+              <button
+                onClick={() => setSelectedPago(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-text-muted)',
+                  cursor: 'pointer',
+                  padding: 'var(--space-1)',
+                  minHeight: 44,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <InfoRow label="Fecha" value={formatDate(selectedPago.fecha)} />
+              <InfoRow label="Monto" value={formatMonto(selectedPago.monto)} />
+              <InfoRow label="Método de pago" value={`${METODO_PAGO_MAP[selectedPago.metodo_pago]?.icon || ''} ${METODO_PAGO_MAP[selectedPago.metodo_pago]?.label || selectedPago.metodo_pago}`} />
+              <InfoRow label="Beneficiario" value={selectedPago.beneficiario} />
+              {selectedPago.descripcion && (
+                <InfoRow label="Descripción" value={selectedPago.descripcion} />
+              )}
+              <InfoRow label="Estado" value={
+                <span style={{
+                  padding: 'var(--space-1) var(--space-3)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 600,
+                  background: (ESTADO_MAP[selectedPago.estado] || ESTADO_MAP.pendiente).bg,
+                  color: (ESTADO_MAP[selectedPago.estado] || ESTADO_MAP.pendiente).color,
+                  display: 'inline-block',
+                }}>
+                  {(ESTADO_MAP[selectedPago.estado] || ESTADO_MAP.pendiente).label}
+                </span>
+              } />
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -403,40 +371,12 @@ const PagosPage = memo(() => {
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
-interface DetalleCardProps {
-  detalle: PagoProfesorDetallePortal;
-}
-
-const DetalleCard = React.memo<DetalleCardProps>(({ detalle }) => (
-  <div style={{
-    background: 'var(--color-bg)',
-    borderRadius: 'var(--radius-lg)',
-    padding: 'var(--space-3)',
-    marginBottom: 'var(--space-2)',
-    border: '1px solid var(--color-border)',
-  }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
-      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)' }}>
-        {formatDate(detalle.fecha)}
-      </span>
-      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-        {detalle.taller_nombre || '-'}
-      </span>
-    </div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-1)' }}>
-      <InfoRow label="Alumnos" value={String(detalle.num_alumnos)} />
-      <InfoRow label="Monto Prof." value={formatMonto(detalle.monto_profesor)} />
-      <InfoRow label="Ganancia taller" value={formatMonto(detalle.ganancia_taller)} />
-    </div>
-  </div>
-));
-
 interface InfoRowProps {
   label: string;
-  value: string;
+  value: React.ReactNode;
 }
 
-const InfoRow = React.memo<InfoRowProps>(({ label, value }) => (
+const InfoRow = memo<InfoRowProps>(({ label, value }) => (
   <div>
     <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', display: 'block' }}>{label}</span>
     <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>{value}</span>
@@ -448,7 +388,7 @@ interface SummaryCardProps {
   value: string;
 }
 
-const SummaryCard = React.memo<SummaryCardProps>(({ label, value }) => (
+const SummaryCard = memo<SummaryCardProps>(({ label, value }) => (
   <div style={{
     background: 'var(--color-surface)',
     borderRadius: 'var(--radius-lg)',
@@ -484,24 +424,6 @@ const thStyle: React.CSSProperties = {
 const tdStyle: React.CSSProperties = {
   padding: 'var(--space-4) var(--space-5)',
   fontSize: 'var(--text-sm)',
-  color: 'var(--color-text)',
-  whiteSpace: 'nowrap',
-};
-
-const innerThStyle: React.CSSProperties = {
-  padding: 'var(--space-2) var(--space-3)',
-  textAlign: 'left',
-  fontSize: 'var(--text-2xs)',
-  fontWeight: 600,
-  color: 'var(--color-text-muted)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  whiteSpace: 'nowrap',
-};
-
-const innerTdStyle: React.CSSProperties = {
-  padding: 'var(--space-2) var(--space-3)',
-  fontSize: 'var(--text-xs)',
   color: 'var(--color-text)',
   whiteSpace: 'nowrap',
 };
