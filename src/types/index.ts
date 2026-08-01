@@ -194,27 +194,6 @@ export interface DashboardDocente {
   horas_mes: number;
 }
 
-export interface PagoProfesorPortal {
-  id: number;
-  fecha_inicio: string;
-  fecha_fin: string;
-  horas_calculadas: number;
-  monto_final: number;
-  estado: string;
-  estado_display: string;
-  fecha_pago: string | null;
-  detalles: PagoProfesorDetallePortal[];
-}
-
-export interface PagoProfesorDetallePortal {
-  id: number;
-  fecha: string;
-  taller_nombre: string | null;
-  num_alumnos: number;
-  monto_profesor: number;
-  ganancia_taller: number;
-}
-
 export interface NotaClase {
   id: number;
   horario: number;

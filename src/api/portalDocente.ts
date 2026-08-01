@@ -12,7 +12,6 @@ import type {
   NotaAlumno,
   NotaDia,
   PagosResponse,
-  PagoProfesorPortal,
   AlumnoCartilla,
   HorarioResumen,
   PaginatedResponse,
@@ -477,19 +476,6 @@ export const deleteNotaDia = async (cicloId: number, notaId: number): Promise<vo
 };
 
 // ─── Pagos ───────────────────────────────────────────────────────────────────
-
-// ponytail: kept for PagosPage.tsx until it's rewritten for new backend format
-export const getPagosLegacy = async (
-  cicloId: number,
-  estado?: string
-): Promise<PagoProfesorPortal[]> => {
-  let url = `/portal-docente/ciclos/${cicloId}/pagos/`;
-  if (estado) {
-    url += `?estado=${estado}`;
-  }
-  const response = await api.get<PagoProfesorPortal[]>(url);
-  return response.data;
-};
 
 export const getPagos = async (
   cicloId: number,
