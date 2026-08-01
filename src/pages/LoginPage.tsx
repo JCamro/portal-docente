@@ -21,7 +21,7 @@ const LoginPage = memo(() => {
 
     const trimmedDni = dni.trim();
     if (trimmedDni.length < 7 || trimmedDni.length > 15) {
-      setError('El DNI debe tener entre 7 y 15 caracteres.');
+      setError('El CUI debe tener entre 7 y 15 caracteres.');
       return;
     }
 
