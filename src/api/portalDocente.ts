@@ -11,6 +11,7 @@ import type {
   NotaClase,
   NotaAlumno,
   NotaDia,
+  PagosResponse,
   PagoProfesorPortal,
   AlumnoCartilla,
   HorarioResumen,
@@ -322,13 +323,14 @@ function normalizeDetalleResponse(raw: unknown): HoraTrabajadaDetalleResponse {
 
 export const getHorasTrabajadasDetalle = async (
   cicloId: number,
-  params?: { fecha_desde?: string; fecha_hasta?: string }
+  params?: { fecha_desde?: string; fecha_hasta?: string; mostrar_todos?: boolean }
 ): Promise<HoraTrabajadaDetalleResponse> => {
   let url = `/portal-docente/ciclos/${cicloId}/horas-trabajadas/detalle/`;
   if (params) {
     const searchParams = new URLSearchParams();
     if (params.fecha_desde) searchParams.set('fecha_desde', params.fecha_desde);
     if (params.fecha_hasta) searchParams.set('fecha_hasta', params.fecha_hasta);
+    if (params.mostrar_todos) searchParams.set('mostrar_todos', 'true');
     const qs = searchParams.toString();
     if (qs) url += `?${qs}`;
   }
@@ -358,18 +360,18 @@ export const getDashboard = async (cicloId: number): Promise<DashboardDocente> =
 
 export const getNotas = async (
   cicloId: number,
-  params?: { horario_id?: number; fecha?: string; ciclo_id?: number }
-): Promise<NotaClase[]> => {
+  params?: Record<string, string | number>
+): Promise<PaginatedResponse<NotaClase>> => {
   let url = `/portal-docente/ciclos/${cicloId}/notas/`;
   if (params) {
     const searchParams = new URLSearchParams();
-    if (params.horario_id) searchParams.set('horario_id', String(params.horario_id));
-    if (params.fecha) searchParams.set('fecha', params.fecha);
-    if (params.ciclo_id) searchParams.set('ciclo_id', String(params.ciclo_id));
+    for (const [key, val] of Object.entries(params)) {
+      searchParams.set(key, String(val));
+    }
     const qs = searchParams.toString();
     if (qs) url += `?${qs}`;
   }
-  const response = await api.get<NotaClase[]>(url);
+  const response = await api.get<PaginatedResponse<NotaClase>>(url);
   return response.data;
 };
 
@@ -398,18 +400,18 @@ export const deleteNota = async (cicloId: number, notaId: number): Promise<void>
 
 export const getNotasAlumno = async (
   cicloId: number,
-  params?: { horario_id?: number; fecha?: string; alumno_id?: number }
-): Promise<NotaAlumno[]> => {
+  params?: Record<string, string | number>
+): Promise<PaginatedResponse<NotaAlumno>> => {
   let url = `/portal-docente/ciclos/${cicloId}/notas-alumno/`;
   if (params) {
     const searchParams = new URLSearchParams();
-    if (params.horario_id) searchParams.set('horario_id', String(params.horario_id));
-    if (params.fecha) searchParams.set('fecha', params.fecha);
-    if (params.alumno_id) searchParams.set('alumno_id', String(params.alumno_id));
+    for (const [key, val] of Object.entries(params)) {
+      searchParams.set(key, String(val));
+    }
     const qs = searchParams.toString();
     if (qs) url += `?${qs}`;
   }
-  const response = await api.get<NotaAlumno[]>(url);
+  const response = await api.get<PaginatedResponse<NotaAlumno>>(url);
   return response.data;
 };
 
@@ -438,19 +440,24 @@ export const deleteNotaAlumno = async (cicloId: number, notaId: number): Promise
 
 export const getNotasDia = async (
   cicloId: number,
-  params?: { fecha?: string }
-): Promise<NotaDia[]> => {
+  params?: Record<string, string | number>
+): Promise<PaginatedResponse<NotaDia>> => {
   let url = `/portal-docente/ciclos/${cicloId}/notas-dia/`;
-  if (params?.fecha) {
-    url += `?fecha=${params.fecha}`;
+  if (params) {
+    const searchParams = new URLSearchParams();
+    for (const [key, val] of Object.entries(params)) {
+      searchParams.set(key, String(val));
+    }
+    const qs = searchParams.toString();
+    if (qs) url += `?${qs}`;
   }
-  const response = await api.get<NotaDia[]>(url);
+  const response = await api.get<PaginatedResponse<NotaDia>>(url);
   return response.data;
 };
 
 export const createNotaDia = async (
   cicloId: number,
-  data: { fecha: string; contenido: string }
+  data: { titulo: string; contenido?: string }
 ): Promise<NotaDia> => {
   const response = await api.post<NotaDia>(`/portal-docente/ciclos/${cicloId}/notas-dia/`, data);
   return response.data;
@@ -459,7 +466,7 @@ export const createNotaDia = async (
 export const updateNotaDia = async (
   cicloId: number,
   notaId: number,
-  data: { contenido: string }
+  data: { titulo?: string; contenido?: string }
 ): Promise<NotaDia> => {
   const response = await api.patch<NotaDia>(`/portal-docente/ciclos/${cicloId}/notas-dia/${notaId}/`, data);
   return response.data;
@@ -471,7 +478,8 @@ export const deleteNotaDia = async (cicloId: number, notaId: number): Promise<vo
 
 // ─── Pagos ───────────────────────────────────────────────────────────────────
 
-export const getPagos = async (
+// ponytail: kept for PagosPage.tsx until it's rewritten for new backend format
+export const getPagosLegacy = async (
   cicloId: number,
   estado?: string
 ): Promise<PagoProfesorPortal[]> => {
@@ -480,5 +488,18 @@ export const getPagos = async (
     url += `?estado=${estado}`;
   }
   const response = await api.get<PagoProfesorPortal[]>(url);
+  return response.data;
+};
+
+export const getPagos = async (
+  cicloId: number,
+  params?: { fecha_desde?: string; fecha_hasta?: string }
+): Promise<PagosResponse> => {
+  const searchParams = new URLSearchParams();
+  if (params?.fecha_desde) searchParams.set('fecha_desde', params.fecha_desde);
+  if (params?.fecha_hasta) searchParams.set('fecha_hasta', params.fecha_hasta);
+  const query = searchParams.toString();
+  const url = `/portal-docente/ciclos/${cicloId}/pagos/${query ? `?${query}` : ''}`;
+  const response = await api.get<PagosResponse>(url);
   return response.data;
 };

@@ -1,6 +1,6 @@
 import React, { memo, useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../stores/authStore';
-import { getPagos } from '../api/portalDocente';
+import { getPagosLegacy } from '../api/portalDocente';
 import type { PagoProfesorPortal, PagoProfesorDetallePortal } from '../types';
 import Loading from '../components/ui/Loading';
 import ErrorState from '../components/ui/ErrorState';
@@ -30,7 +30,7 @@ const PagosPage = memo(() => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getPagos(cicloActivo.id, filtroEstado || undefined);
+      const data = await getPagosLegacy(cicloActivo.id, filtroEstado || undefined);
       setRecords(data);
     } catch {
       setError('Error al cargar pagos');

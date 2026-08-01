@@ -189,6 +189,7 @@ export interface DashboardData {
 export interface DashboardDocente {
   clases_hoy: number;
   total_alumnos: number;
+  total_horarios: number;
   horas_dia: number;
   horas_mes: number;
 }
@@ -217,7 +218,9 @@ export interface PagoProfesorDetallePortal {
 export interface NotaClase {
   id: number;
   horario: number;
-  horario_info?: Horario;
+  dia_semana: number;
+  hora_inicio: string;
+  hora_fin: string;
   taller_nombre?: string;
   fecha: string;
   contenido: string;
@@ -254,8 +257,9 @@ export interface NotaAlumno {
 
 export interface NotaDia {
   id: number;
-  fecha: string;
+  titulo: string;
   contenido: string;
+  fecha: string;
   created_at: string;
   updated_at?: string;
 }
@@ -409,4 +413,29 @@ export interface HorariosSemanalesResponse {
 export interface HorarioSemanalConTaller extends HorarioSemanal {
   taller_nombre: string;
   taller_color: string;
+}
+
+// ─── Egresos Portal ─────────────────────────────────────────────────────────
+
+export interface EgresoPortal {
+  id: number;
+  monto: number;
+  descripcion: string;
+  fecha: string;
+  metodo_pago: 'efectivo' | 'transferencia' | 'yape' | 'plin';
+  estado: 'pendiente' | 'cancelado';
+  beneficiario: string;
+  created_at: string;
+}
+
+export interface PagosStats {
+  total_pagado: number;
+  cantidad_pagos: number;
+  promedio_pago: number;
+  ultimo_pago: string | null;
+}
+
+export interface PagosResponse {
+  pagos: EgresoPortal[];
+  stats: PagosStats;
 }
